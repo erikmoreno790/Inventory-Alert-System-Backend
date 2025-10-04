@@ -1,5 +1,5 @@
-const Cotizacion = require('../models/cotizacionModel');
-const CotizacionItem = require('../models/cotizacionItemModel');
+const Cotizacion = require('../models/CotizacionModel');
+const CotizacionItem = require('../models/CotizacionItemModel');
 
 const cotizacionController = {
     async getAll(req, res) {

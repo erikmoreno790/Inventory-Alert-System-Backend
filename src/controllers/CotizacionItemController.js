@@ -1,4 +1,4 @@
-const CotizacionItem = require('../models/cotizacionItemModel');
+const CotizacionItem = require('../models/CotizacionItemModel');
 
 const cotizacionItemController = {
     async getByCotizacionId(req, res) {
@@ -45,8 +45,8 @@ const cotizacionItemController = {
             const { fechaInicio, fechaFin } = req.query;
 
             if (!fechaInicio || !fechaFin) {
-                return res.status(400).json({ 
-                    error: 'Debes enviar fechaInicio y fechaFin en formato YYYY-MM-DD' 
+                return res.status(400).json({
+                    error: 'Debes enviar fechaInicio y fechaFin en formato YYYY-MM-DD'
                 });
             }
 
