@@ -19,9 +19,30 @@ const salidaRoutes = require('./routes/salidaRoutes')
 
 const app = express();
 
+// Lista de orígenes permitidos
+const allowedOrigins = [
+    'https://inventory-alert-system-frontend-a63pswjuh.vercel.app', // Origen actual
+    'http://localhost:3000' // Para pruebas locales
+];
+
+// Configuración de CORS
 app.use(cors({
-    origin: 'https://inventory-alert-system-frontend.vercel.app/',
+    origin: (origin, callback) => {
+        // Permitir peticiones sin origen (e.g., Postman) o desde orígenes permitidos
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else if (origin && origin.endsWith('.vercel.app')) {
+            // Permitir cualquier subdominio de vercel.app (para flexibilidad)
+            callback(null, true);
+        } else {
+            swapcallback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true, // Si usas cookies o tokens
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
