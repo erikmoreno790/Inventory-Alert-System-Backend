@@ -10,7 +10,7 @@ const pool = new Pool({
 });
 
 
-(async () => {
+/*(async () => {
   try {
     const nombre = 'Erik';
     const email = 'admin@gmail.com';
@@ -34,7 +34,7 @@ const pool = new Pool({
   } finally {
     pool.end();
   }
-})();
+})();*/
 
 module.exports = pool;
 
