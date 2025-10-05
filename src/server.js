@@ -38,7 +38,7 @@ app.get('/', (req, res) => {
 });
 
 
-app.listen(PORT, HOST, () => {
+app.listen(PORT, () => {
     console.log(`✅ Servidor corriendo en http://${DB_HOST}:${PORT}`);
     //Api
     //console.log(`🔧 API: http://${DB_HOST}:${PORT}/api`);
