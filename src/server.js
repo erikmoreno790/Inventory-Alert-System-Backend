@@ -5,7 +5,7 @@ require('dotenv').config();
 
 
 const PORT = process.env.PORT;
-const DB_HOST = process.env.HOST;
+const DB_HOST = process.env.DB_HOST;
 const DATABASE_URL = process.env.DATABASE_URL;
 
 const authRoutes = require('./routes/authRoutes');
@@ -19,7 +19,9 @@ const salidaRoutes = require('./routes/salidaRoutes')
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: 'https://inventory-alert-system-frontend.vercel.app/',
+}));
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
