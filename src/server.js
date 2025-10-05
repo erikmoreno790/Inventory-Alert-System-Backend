@@ -5,7 +5,8 @@ require('dotenv').config();
 
 
 const PORT = process.env.PORT;
-const HOST = process.env.HOST;
+const DB_HOST = process.env.HOST;
+const DATABASE_URL = process.env.DATABASE_URL;
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -40,6 +41,6 @@ app.get('/', (req, res) => {
 app.listen(PORT, HOST, () => {
     console.log(`✅ Servidor corriendo en http://${DB_HOST}:${PORT}`);
     //Api
-    console.log(`🔧 API: http://${DB_HOST}:${PORT}/api`);
-    console.log(`📦 Base de datos: ${process.env.DATABASE_URL || 'no definida'}`);
+    //console.log(`🔧 API: http://${DB_HOST}:${PORT}/api`);
+    console.log(`📦 Base de datos: ${DATABASE_URL || 'no definida'}`);
 });
