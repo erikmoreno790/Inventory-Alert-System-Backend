@@ -31,10 +31,15 @@ app.use('/api/cotizacion-items', cotizacionItemRoutes);
 app.use('/api/entradas', entradaRoutes);
 app.use('/api/salidas', salidaRoutes);
 
+//ruta de prueba render
+app.get('/', (req, res) => {
+    res.send('API de gestión de inventario y cotizaciones funcionando correctamente.');
+});
+
 
 app.listen(PORT, HOST, () => {
-    console.log(`✅ Servidor corriendo en http://${HOST}:${PORT}`);
-    //console.log(`🔗 URL de la API: http://${HOST}:${PORT}/api`);
-    //console.log(`🔐 Entorno: ${process.env.NODE_ENV || 'desarrollo'}`);
-    //console.log(`📦 Base de datos: ${process.env.DB_NAME || 'no definida'}`);
+    console.log(`✅ Servidor corriendo en http://${DB_HOST}:${PORT}`);
+    //Api
+    console.log(`🔧 API: http://${DB_HOST}:${PORT}/api`);
+    console.log(`📦 Base de datos: ${process.env.DATABASE_URL || 'no definida'}`);
 });
