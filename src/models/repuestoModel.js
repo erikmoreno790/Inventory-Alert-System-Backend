@@ -16,7 +16,7 @@ const getRepuestoById = async (id) => {
 const createRepuesto = async (data) => {
   const {
     nombre,
-    descripcion,
+    referencia,
     categoria,
     marca,
     compatibilidad,
@@ -33,7 +33,7 @@ const createRepuesto = async (data) => {
       (nombre, descripcion, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado) 
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) 
      RETURNING *`,
-    [nombre, descripcion, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado]
+    [nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado]
   );
   return result.rows[0];
 };
@@ -42,7 +42,7 @@ const createRepuesto = async (data) => {
 const updateRepuesto = async (id, data) => {
   const {
     nombre,
-    descripcion,
+    referencia,
     categoria,
     marca,
     compatibilidad,
@@ -56,18 +56,18 @@ const updateRepuesto = async (id, data) => {
 
   const result = await pool.query(
     `UPDATE repuestos 
-     SET nombre=$1, descripcion=$2, categoria=$3, marca=$4, compatibilidad=$5, proveedor=$6, 
+     SET nombre=$1, referencia=$2, categoria=$3, marca=$4, compatibilidad=$5, proveedor=$6, 
          stock=$7, stock_minimo=$8, precio_unitario=$9, unidad_medida=$10, estado=$11
      WHERE repuesto_id=$12
      RETURNING *`,
-    [nombre, descripcion, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado, id]
+    [nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado, id]
   );
   return result.rows[0];
 };
 
 // Obtener todos los movimientos (entradas y salidas)
 const getAllMovements = async () => {
-    const query = `
+  const query = `
       SELECT e.entrada_id AS movimiento_id,
        e.repuesto_id,
        r.nombre AS repuesto,
@@ -99,9 +99,9 @@ LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
 ORDER BY fecha DESC;
 
     `;
-    const { rows } = await pool.query(query);
-    return rows;
-  };
+  const { rows } = await pool.query(query);
+  return rows;
+};
 
 // Eliminar repuesto
 const deleteRepuesto = async (id) => {
