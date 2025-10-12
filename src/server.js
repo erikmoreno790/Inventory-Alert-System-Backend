@@ -1,11 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({
+    path: process.env.NODE_ENV === 'production' ? '.env' : '.env.local'
+});
 
 
-const PORT = process.env.PORT;
-const DB_HOST = process.env.DB_HOST;
+const PORT = process.env.PORT || 3000;
+const DB_HOST = process.env.DB_HOST || 'localhost';
 const DATABASE_URL = process.env.DATABASE_URL;
 
 const authRoutes = require('./routes/authRoutes');
@@ -22,7 +24,7 @@ const app = express();
 // Lista de orígenes permitidos
 const allowedOrigins = [
     'https://inventory-alert-system-frontend-a63pswjuh.vercel.app', // Origen actual
-    'http://localhost:3000' // Para pruebas locales
+    'http://localhost:5173' // Para pruebas locales
 ];
 
 // Configuración de CORS
@@ -35,7 +37,7 @@ app.use(cors({
             // Permitir cualquier subdominio de vercel.app (para flexibilidad)
             callback(null, true);
         } else {
-            swapcallback(new Error('Not allowed by CORS'));
+            callback(new Error('No permitido por CORS'));
         }
     },
     credentials: true, // Si usas cookies o tokens
@@ -55,9 +57,9 @@ app.use('/api/cotizacion-items', cotizacionItemRoutes);
 app.use('/api/entradas', entradaRoutes);
 app.use('/api/salidas', salidaRoutes);
 
-//ruta de prueba render
+// Ruta de prueba
 app.get('/', (req, res) => {
-    res.send('API de gestión de inventario y cotizaciones funcionando correctamente.');
+    res.send(`API funcionando correctamente en entorno: ${process.env.NODE_ENV || 'desarrollo'}`);
 });
 
 

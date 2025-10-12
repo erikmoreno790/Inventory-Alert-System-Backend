@@ -1,14 +1,19 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+require('dotenv').config({
+  path: process.env.NODE_ENV === 'production' ? '.env' : '.env.local'
+});
 const bcrypt = require('bcrypt');
 
+// Determinar si estás en Render (producción) o en local
+const isRenderDB = process.env.DATABASE_URL?.includes('render.com');
+
+// Configuración del pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Necesario para Render
-  },
+  ssl: isRenderDB ? { rejectUnauthorized: false } : false
 });
 
+module.exports = pool;
 
 /*(async () => {
   try {
