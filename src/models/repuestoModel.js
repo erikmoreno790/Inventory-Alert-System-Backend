@@ -30,7 +30,7 @@ const createRepuesto = async (data) => {
 
   const result = await pool.query(
     `INSERT INTO repuestos 
-      (nombre, descripcion, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado) 
+      (nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado) 
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) 
      RETURNING *`,
     [nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado]
