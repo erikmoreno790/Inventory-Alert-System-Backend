@@ -27,7 +27,7 @@ const crearCotizacion = async (req, res) => {
 
   // Normalizar valores vacíos
   const safeValues = {
-    fecha: fecha ? fecha : new Date().toISOString().split("T")[0],,
+    fecha: fecha ? fecha : new Date().toISOString().split("T")[0],
     nombre_cliente,
     nit_cc: nit_cc || null,
     telefono: telefono || null,
