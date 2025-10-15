@@ -1,5 +1,4 @@
 const pool = require('../config/db');
-const AlertaModel = require('./alertModel');
 
 const entradaModel = {
   // Crear una nueva entrada
@@ -9,6 +8,13 @@ const entradaModel = {
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *;
     `;
+
+    //Agregar stock al repuesto
+    await pool.query(
+      'UPDATE repuestos SET stock = stock + $1 WHERE repuesto_id = $2;',
+      [cantidad, repuesto_id]
+    );
+
     const values = [repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada];
     const { rows } = await pool.query(query, values);
     return rows[0];
@@ -54,6 +60,17 @@ const entradaModel = {
       WHERE entrada_id = $8
       RETURNING *;
     `;
+
+    // Actualizar stock del repuesto (asumiendo que la cantidad puede cambiar)
+    const entradaActual = await this.findById(id);
+    if (entradaActual) {
+      const diferencia = cantidad - entradaActual.cantidad;
+      await pool.query(
+        'UPDATE repuestos SET stock = stock + $1 WHERE repuesto_id = $2;',
+        [diferencia, repuesto_id]
+      );
+    }
+
     const values = [repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada, id];
     const { rows } = await pool.query(query, values);
     return rows[0];
@@ -63,16 +80,17 @@ const entradaModel = {
   async delete(id) {
     const query = 'DELETE FROM entrada_repuestos WHERE entrada_id = $1 RETURNING *;';
     const { rows } = await pool.query(query, [id]);
+    entrada = rows[0];
 
-    // Si se eliminó una entrada, verificar y actualizar alertas si es necesario
-    if (rows.length > 0) {
-      const entrada = rows[0];
-      await AlertaModel.checkStockAndAlert(entrada.repuesto_id);
-    }
-
-    return rows[0];
+    // Restaurar stock del repuesto
+    if (entrada) {
+      await pool.query(
+        'UPDATE repuestos SET stock = stock - $1 WHERE repuesto_id = $2;',
+        [entrada.cantidad, entrada.repuesto_id]
+      );
+    };
+    return entrada;
   },
-  
 };
 
 module.exports = entradaModel;

@@ -12,8 +12,11 @@ const SalidaModel = {
     const { rows } = await pool.query(query, values);
     const salida = rows[0];
 
-    // Verificar stock y generar alerta si es necesario
-    await AlertaModel.checkStockAndAlert(salida.repuesto_id);
+    // Disminuir stock del repuesto
+    await pool.query(
+      'UPDATE repuestos SET stock = stock - $1 WHERE repuesto_id = $2;',
+      [cantidad, repuesto_id]
+    );
 
     return salida;
   },
@@ -43,7 +46,7 @@ const SalidaModel = {
     return rows[0];
   },
 
-// Actualizar una salida
+  // Actualizar una salida
   async update(id, { repuesto_id, cantidad, destino, observacion, fecha, tipo_salida }) {
     const query = `
       UPDATE salida_repuestos
@@ -60,11 +63,15 @@ const SalidaModel = {
     const { rows } = await pool.query(query, values);
     const salida = rows[0];
 
-    if (salida) {
-      // Verificar stock y generar alerta si es necesario
-      await AlertaModel.checkStockAndAlert(salida.repuesto_id);
+    // Actualizar stock del repuesto (asumiendo que la cantidad puede cambiar)
+    const salidaActual = await this.findById(id);
+    if (salidaActual) {
+      const diferencia = cantidad - salidaActual.cantidad;
+      await pool.query(
+        'UPDATE repuestos SET stock = stock - $1 WHERE repuesto_id = $2;',
+        [diferencia, repuesto_id]
+      );
     }
-
     return salida;
   },
 
@@ -74,11 +81,13 @@ const SalidaModel = {
     const { rows } = await pool.query(query, [id]);
     const salida = rows[0];
 
+    // Restaurar stock del repuesto
     if (salida) {
-      // Verificar stock y generar alerta si es necesario
-      await AlertaModel.checkStockAndAlert(salida.repuesto_id);
+      await pool.query(
+        'UPDATE repuestos SET stock = stock + $1 WHERE repuesto_id = $2;',
+        [salida.cantidad, salida.repuesto_id]
+      );
     }
-
     return salida;
   },
 };

@@ -6,6 +6,8 @@ const getAllRepuestos = async () => {
   return result.rows;
 };
 
+//Obtener
+
 // Obtener un repuesto por ID
 const getRepuestoById = async (id) => {
   const result = await pool.query('SELECT * FROM repuestos WHERE repuesto_id = $1', [id]);
