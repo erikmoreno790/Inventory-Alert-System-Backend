@@ -111,59 +111,33 @@ const deleteRepuesto = async (id) => {
   return result.rows[0];
 };
 
-const getBelowStockMin = async () => {
-  const result = await pool.query('SELECT * FROM Repuestos WHERE stock < stock_minimo');
-  return result.rows;
-};
 
-const getByCategoria = async (categoria) => {
+/*const getByCategoria = async (categoria) => {
   const result = await pool.query('SELECT * FROM Repuestos WHERE categoria = $1', [categoria]);
   return result.rows;
-};
+};*/
 
-const getByProveedor = async (proveedor) => {
-  const result = await pool.query('SELECT * FROM Repuestos WHERE proveedor = $1', [proveedor]);
+
+// Total repuestos agrupados por categoria
+/*const getAllRepuestosPorCategoria = async () => {
+  const result = await pool.query('SELECT categoria, COUNT(*) AS total FROM Repuestos GROUP BY categoria');
   return result.rows;
-};
+}*/
 
-const getDisponibles = async () => {
-  const result = await pool.query("SELECT * FROM Repuestos WHERE estado = 'disponible' AND stock > 0");
+//Cantidad total de repuestos agrupados por categoria
+const getCantidadRepuestosPorCategoria = async () => {
+  const result = await pool.query('SELECT categoria, SUM(stock) AS cantidad_total FROM repuestos GROUP BY categoria');
   return result.rows;
-};
+}
 
-const getTopMinStock = async (limit = 5) => {
-  const result = await pool.query('SELECT * FROM Repuestos ORDER BY stock ASC LIMIT $1', [limit]);
-  return result.rows;
-};
-
-const getValorInventario = async () => {
-  const result = await pool.query('SELECT SUM(stock * precio_unitario) AS valor_inventario FROM Repuestos');
-  return result.rows[0];
-};
-
-const getCantidadPorCategoria = async () => {
-  const result = await pool.query('SELECT categoria, COUNT(*) AS cantidad_repuestos FROM Repuestos GROUP BY categoria');
-  return result.rows;
-};
 
 module.exports = {
-  getAllRepuestos,
   getRepuestoById,
   createRepuesto,
   updateRepuesto,
   deleteRepuesto,
   getAllRepuestos,
-  getRepuestoById,
-  createRepuesto,
-  updateRepuesto,
-  deleteRepuesto,
-  getBelowStockMin,
-  getByCategoria,
-  getByProveedor,
-  getDisponibles,
-  getTopMinStock,
-  getValorInventario,
-  getCantidadPorCategoria,
-  getAllMovements
+  getAllMovements,
+  getCantidadRepuestosPorCategoria
 
 };

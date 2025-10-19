@@ -122,13 +122,27 @@ const getAllMovements = async (req, res) => {
   }
 };
 
-module.exports = { 
-    getAll, 
-    getById, 
-    create, 
-    update, 
-    remove,
-getAll, getById, create, update, remove,
-  getBelowStockMin, getByCategoria, getByProveedor, 
-  getDisponibles, getTopMinStock, getValorInventario, getCantidadPorCategoria, 
-  getAllMovements};
+const getCantidadRepuestosPorCategoria = async (req, res) => {
+  try {
+    console.log("Llegó a controller");
+    const result = await Repuesto.getCantidadRepuestosPorCategoria();
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener cantidad de repuestos por categoría', details: err.message });
+  }
+};
+
+module.exports = {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+  getAll,
+  getById,
+  getBelowStockMin, getByCategoria, getByProveedor,
+  getDisponibles, getTopMinStock, getValorInventario, getCantidadPorCategoria,
+  getAllMovements,
+  getCantidadRepuestosPorCategoria
+};
