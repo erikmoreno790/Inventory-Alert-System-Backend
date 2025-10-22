@@ -1,7 +1,7 @@
 const pool = require('../config/db');
 
 const entradaModel = {
-  // Crear una nueva entrada
+  // Crear una nueva entrada asociada al usuario que la crea
   async create({ repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada }) {
     const query = `
       INSERT INTO entrada_repuestos (repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada)

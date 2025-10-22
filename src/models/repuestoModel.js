@@ -14,8 +14,7 @@ const getRepuestoById = async (id) => {
   return result.rows[0];
 };
 
-// Crear un nuevo repuesto
-const createRepuesto = async (data) => {
+const createRepuesto = async (data, userId) => {
   const {
     nombre,
     referencia,
@@ -25,23 +24,39 @@ const createRepuesto = async (data) => {
     proveedor,
     stock,
     stock_minimo,
-    precio_unitario,
+    precio_unitario_costo,
+    precio_unitario_venta,
     unidad_medida,
     estado
   } = data;
 
   const result = await pool.query(
     `INSERT INTO repuestos 
-      (nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado) 
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) 
+      (nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, 
+       precio_unitario_costo, precio_unitario_venta, unidad_medida, estado, creado_por)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING *`,
-    [nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado]
+    [
+      nombre,
+      referencia,
+      categoria,
+      marca,
+      compatibilidad,
+      proveedor,
+      stock,
+      stock_minimo,
+      precio_unitario_costo,
+      precio_unitario_venta,
+      unidad_medida,
+      estado,
+      userId
+    ]
   );
+
   return result.rows[0];
 };
 
-// Actualizar repuesto
-const updateRepuesto = async (id, data) => {
+const updateRepuesto = async (id, data, userId) => {
   const {
     nombre,
     referencia,
@@ -51,7 +66,8 @@ const updateRepuesto = async (id, data) => {
     proveedor,
     stock,
     stock_minimo,
-    precio_unitario,
+    precio_unitario_costo,
+    precio_unitario_venta,
     unidad_medida,
     estado
   } = data;
@@ -59,13 +75,45 @@ const updateRepuesto = async (id, data) => {
   const result = await pool.query(
     `UPDATE repuestos 
      SET nombre=$1, referencia=$2, categoria=$3, marca=$4, compatibilidad=$5, proveedor=$6, 
-         stock=$7, stock_minimo=$8, precio_unitario=$9, unidad_medida=$10, estado=$11
-     WHERE repuesto_id=$12
+         stock=$7, stock_minimo=$8, precio_unitario_costo=$9, precio_unitario_venta=$10, unidad_medida=$11, estado=$12,
+         actualizado_por=$13, fecha_actualizacion=NOW()
+     WHERE repuesto_id=$14
      RETURNING *`,
-    [nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, precio_unitario, unidad_medida, estado, id]
+    [
+      nombre,
+      referencia,
+      categoria,
+      marca,
+      compatibilidad,
+      proveedor,
+      stock,
+      stock_minimo,
+      precio_unitario_costo,
+      precio_unitario_venta,
+      unidad_medida,
+      estado,
+      userId,
+      id
+    ]
   );
+
   return result.rows[0];
 };
+
+const deleteRepuesto = async (id, userId) => {
+  const result = await pool.query(
+    `UPDATE repuestos
+     SET estado = 'eliminado',
+         eliminado_por = $1,
+         fecha_eliminacion = NOW()
+     WHERE repuesto_id = $2
+     RETURNING *`,
+    [userId, id]
+  );
+
+  return result.rows[0];
+};
+
 
 // Obtener todos los movimientos (entradas y salidas)
 const getAllMovements = async () => {
@@ -105,11 +153,7 @@ ORDER BY fecha DESC;
   return rows;
 };
 
-// Eliminar repuesto
-const deleteRepuesto = async (id) => {
-  const result = await pool.query('DELETE FROM repuestos WHERE repuesto_id = $1 RETURNING *', [id]);
-  return result.rows[0];
-};
+
 
 
 /*const getByCategoria = async (categoria) => {
@@ -139,5 +183,4 @@ module.exports = {
   getAllRepuestos,
   getAllMovements,
   getCantidadRepuestosPorCategoria
-
 };

@@ -7,12 +7,17 @@ const authenticate = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded; // { id, role }
+        // asegúrate de que el token contenga id_usuario y rol
+        req.user = {
+            id_usuario: decoded.id_usuario || decoded.id, // por compatibilidad
+            rol: decoded.rol || decoded.role,
+        };
         next();
-    } catch {
-        return res.status(403).json({ message: 'Token inválido' });
+    } catch (err) {
+        return res.status(403).json({ message: 'Token inválido', details: err.message });
     }
 };
+
 
 const authorize = (...roles) => {
     return (req, res, next) => {
