@@ -21,32 +21,53 @@ const getById = async (req, res) => {
 
 const create = async (req, res) => {
   try {
-    const nuevo = await Repuesto.createRepuesto(req.body);
+    const userId = req.user?.id_usuario; // ID del usuario autenticado
+    if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
+
+    const nuevo = await Repuesto.createRepuesto(req.body, userId);
     res.status(201).json(nuevo);
   } catch (err) {
-    res.status(500).json({ error: 'Error al crear repuesto', details: err.message });
+    res.status(500).json({
+      error: 'Error al crear repuesto',
+      details: err.message
+    });
   }
 };
 
 const update = async (req, res) => {
   try {
-    const actualizado = await Repuesto.updateRepuesto(req.params.id, req.body);
+    const userId = req.user?.id_usuario;
+    if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
+
+    const actualizado = await Repuesto.updateRepuesto(req.params.id, req.body, userId);
     if (!actualizado) return res.status(404).json({ message: 'Repuesto no encontrado' });
+
     res.json(actualizado);
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar repuesto', details: err.message });
+    res.status(500).json({
+      error: 'Error al actualizar repuesto',
+      details: err.message
+    });
   }
 };
 
 const remove = async (req, res) => {
   try {
-    const eliminado = await Repuesto.deleteRepuesto(req.params.id);
+    const userId = req.user?.id_usuario;
+    if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
+
+    const eliminado = await Repuesto.deleteRepuesto(req.params.id, userId);
     if (!eliminado) return res.status(404).json({ message: 'Repuesto no encontrado' });
-    res.json({ message: 'Repuesto eliminado', eliminado });
+
+    res.json({ message: 'Repuesto eliminado correctamente', eliminado });
   } catch (err) {
-    res.status(500).json({ error: 'Error al eliminar repuesto', details: err.message });
+    res.status(500).json({
+      error: 'Error al eliminar repuesto',
+      details: err.message
+    });
   }
 };
+
 
 const getBelowStockMin = async (req, res) => {
   try {

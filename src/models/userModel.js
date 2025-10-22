@@ -5,28 +5,48 @@ const findUserByEmail = async (email) => {
     return res.rows[0];
 };
 
-const createUser = async ({ name, email, password, role }) => {
-    const res = await pool.query(
-        'INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING *',
-        [name, email, password, role]
-    );
-    return res.rows[0];
-};
-
 const getAllUsers = async () => {
     const res = await pool.query('SELECT id_usuario, nombre, email, telefono, rol, created_at FROM usuarios');
     return res.rows;
 };
+
+const createUser = async ({ name, email, password }) => {
+
+    const res = await pool.query(
+        'INSERT INTO usuarios (nombre, email, password_hash) VALUES ($1, $2, $3 ) RETURNING id_usuario, nombre, email, created_at',
+        [name, email, password]
+    );
+    return res.rows[0];
+}
 
 const getUserById = async (id) => {
     const res = await pool.query('SELECT id_usuario, nombre, email, telefono, rol, created_at FROM usuarios WHERE id = $1', [id]);
     return res.rows[0];
 };
 
-const updateUser = async (id, { name, role }) => {
+// Asignar rol a un usuario
+const asigneRoleToUser = async (userId, role) => {
     const res = await pool.query(
-        'UPDATE usuarios SET name = $1, rol = $2 WHERE id_usuario = $3 RETURNING *',
-        [name, role, id]
+        'UPDATE usuarios SET rol = $1 WHERE id_usuario = $2 RETURNING *',
+        [role, userId]
+    );
+    return res.rows[0];
+}
+
+// Cambiar email o password
+const changeUserCredentials = async (id, { email, password }) => {
+    const res = await pool.query(
+        'UPDATE usuarios SET email = $1, password_hash = $2 WHERE id_usuario = $3 RETURNING *',
+        [email, password, id]
+    );
+    return res.rows[0];
+}
+
+// Actualizar usuario ()
+const updateUser = async (id, { name, email, telefono }) => {
+    const res = await pool.query(
+        'UPDATE usuarios SET nombre = $1, email = $2, telefono = $3  WHERE id_usuario = $5 RETURNING id_usuario, nombre, email, telefono, created_at',
+        [name, email, telefono, id]
     );
     return res.rows[0];
 };
@@ -42,6 +62,14 @@ const getNotificationUsers = async () => {
     return res.rows;
 };
 
-
-
-module.exports = { findUserByEmail, createUser, getAllUsers, getUserById, updateUser, deleteUser, getNotificationUsers };
+module.exports = {
+    findUserByEmail,
+    createUser,
+    getAllUsers,
+    getUserById,
+    updateUser,
+    deleteUser,
+    getNotificationUsers,
+    changeUserCredentials,
+    asigneRoleToUser
+};
