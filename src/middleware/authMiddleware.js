@@ -9,8 +9,9 @@ const authenticate = (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         // asegúrate de que el token contenga id_usuario y rol
         req.user = {
-            id_usuario: decoded.id_usuario || decoded.id, // por compatibilidad
-            rol: decoded.rol || decoded.role,
+            id_usuario: decoded.id_usuario, // por compatibilidad
+            rol: decoded.rol,
+            nombre: decoded.nombre
         };
         next();
     } catch (err) {
