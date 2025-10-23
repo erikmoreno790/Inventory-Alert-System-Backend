@@ -137,7 +137,6 @@ const getAllMovements = async (req, res) => {
   try {
     const movements = await Repuesto.getAllMovements();
     res.json(movements);
-    console.log(movements); // ✅ ahora sí imprime lo recibido
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener movimientos', details: err.message });
   }

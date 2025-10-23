@@ -128,42 +128,48 @@ const deleteRepuesto = async (id) => {
 // Obtener todos los movimientos (entradas y salidas)
 const getAllMovements = async () => {
   const query = `
-      SELECT e.entrada_id AS movimiento_id,
-       e.repuesto_id,
-       r.nombre AS repuesto,
-       e.cantidad,
-       e.proveedor AS contraparte,
-       e.factura,
-       e.observacion,
-       e.fecha,
-       e.tipo_entrada::text AS subtipo,
-       'Entrada' AS tipo_movimiento
-FROM entrada_repuestos e
-LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
+    SELECT 
+      e.entrada_id AS movimiento_id,
+      e.repuesto_id,
+      r.nombre AS repuesto,
+      e.cantidad,
+      e.proveedor AS contraparte,
+      e.factura,
+      e.observacion,
+      e.fecha,
+      e.tipo_entrada::text AS subtipo,
+      e.id_usuario,
+      u.nombre AS usuario,
+      'Entrada' AS tipo_movimiento
+    FROM entrada_repuestos e
+    LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
 
-UNION ALL
+    UNION ALL
 
-SELECT s.salida_id AS movimiento_id,
-       s.repuesto_id,
-       r.nombre AS repuesto,
-       s.cantidad,
-       s.destino AS contraparte,
-       NULL AS factura,
-       s.observacion,
-       s.fecha,
-       s.tipo_salida::text AS subtipo,
-       'Salida' AS tipo_movimiento
-FROM salida_repuestos s
-LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
+    SELECT 
+      s.salida_id AS movimiento_id,
+      s.repuesto_id,
+      r.nombre AS repuesto,
+      s.cantidad,
+      s.destino AS contraparte,
+      NULL AS factura,
+      s.observacion,
+      s.fecha,
+      s.tipo_salida::text AS subtipo,
+      s.id_usuario,
+      u.nombre AS usuario,
+      'Salida' AS tipo_movimiento
+    FROM salida_repuestos s
+    LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
 
-ORDER BY fecha DESC;
+    ORDER BY fecha DESC;
+  `;
 
-    `;
   const { rows } = await pool.query(query);
   return rows;
 };
-
-
 
 
 /*const getByCategoria = async (categoria) => {
