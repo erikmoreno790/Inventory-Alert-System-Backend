@@ -10,7 +10,23 @@ const getAllRepuestos = async () => {
 
 // Obtener un repuesto por ID
 const getRepuestoById = async (id) => {
-  const result = await pool.query('SELECT * FROM repuestos WHERE repuesto_id = $1', [id]);
+  const query = `
+    SELECT 
+      repuesto_id, 
+      nombre, 
+      referencia, 
+      marca, 
+      proveedor,
+      categoria, 
+      stock, 
+      precio_unitario_costo, 
+      precio_unitario_venta,
+      creado_por,
+      fecha_actualizacion
+    FROM repuestos
+    WHERE repuesto_id = $1
+  `;
+  const result = await pool.query(query, [id]);
   return result.rows[0];
 };
 
@@ -100,60 +116,60 @@ const updateRepuesto = async (id, data, userId) => {
   return result.rows[0];
 };
 
-const deleteRepuesto = async (id, userId) => {
-  const result = await pool.query(
-    `UPDATE repuestos
-     SET estado = 'eliminado',
-         eliminado_por = $1,
-         fecha_eliminacion = NOW()
-     WHERE repuesto_id = $2
-     RETURNING *`,
-    [userId, id]
-  );
-
+const deleteRepuesto = async (id) => {
+  const result = await pool.query(`
+    DELETE FROM repuestos 
+    WHERE repuesto_id =
+     $1 RETURNING *`, [id]);
   return result.rows[0];
-};
+}
 
 
 // Obtener todos los movimientos (entradas y salidas)
 const getAllMovements = async () => {
   const query = `
-      SELECT e.entrada_id AS movimiento_id,
-       e.repuesto_id,
-       r.nombre AS repuesto,
-       e.cantidad,
-       e.proveedor AS contraparte,
-       e.factura,
-       e.observacion,
-       e.fecha,
-       e.tipo_entrada::text AS subtipo,
-       'Entrada' AS tipo_movimiento
-FROM entrada_repuestos e
-LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
+    SELECT 
+      e.entrada_id AS movimiento_id,
+      e.repuesto_id,
+      r.nombre AS repuesto,
+      e.cantidad,
+      e.proveedor AS contraparte,
+      e.factura,
+      e.observacion,
+      e.fecha,
+      e.tipo_entrada::text AS subtipo,
+      e.id_usuario,
+      u.nombre AS usuario,
+      'Entrada' AS tipo_movimiento
+    FROM entrada_repuestos e
+    LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
 
-UNION ALL
+    UNION ALL
 
-SELECT s.salida_id AS movimiento_id,
-       s.repuesto_id,
-       r.nombre AS repuesto,
-       s.cantidad,
-       s.destino AS contraparte,
-       NULL AS factura,
-       s.observacion,
-       s.fecha,
-       s.tipo_salida::text AS subtipo,
-       'Salida' AS tipo_movimiento
-FROM salida_repuestos s
-LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
+    SELECT 
+      s.salida_id AS movimiento_id,
+      s.repuesto_id,
+      r.nombre AS repuesto,
+      s.cantidad,
+      s.destino AS contraparte,
+      NULL AS factura,
+      s.observacion,
+      s.fecha,
+      s.tipo_salida::text AS subtipo,
+      s.id_usuario,
+      u.nombre AS usuario,
+      'Salida' AS tipo_movimiento
+    FROM salida_repuestos s
+    LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
 
-ORDER BY fecha DESC;
+    ORDER BY fecha DESC;
+  `;
 
-    `;
   const { rows } = await pool.query(query);
   return rows;
 };
-
-
 
 
 /*const getByCategoria = async (categoria) => {

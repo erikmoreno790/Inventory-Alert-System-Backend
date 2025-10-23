@@ -2,36 +2,63 @@ const pool = require('../config/db');
 
 const entradaModel = {
   // Crear una nueva entrada asociada al usuario que la crea
-  async create({ repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada }) {
+  async create({ repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada, id_usuario }) {
     const query = `
-      INSERT INTO entrada_repuestos (repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *;
-    `;
+    INSERT INTO entrada_repuestos 
+      (repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada, id_usuario)
+    VALUES 
+      ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING *;
+  `;
 
-    //Agregar stock al repuesto
+    // Actualizar stock del repuesto
     await pool.query(
       'UPDATE repuestos SET stock = stock + $1 WHERE repuesto_id = $2;',
       [cantidad, repuesto_id]
     );
 
-    const values = [repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada];
+    // Valores para la inserción
+    const values = [
+      repuesto_id,
+      cantidad,
+      proveedor,
+      factura,
+      observacion,
+      fecha,
+      tipo_entrada,
+      id_usuario
+    ];
+
     const { rows } = await pool.query(query, values);
     return rows[0];
-  },
+  }
+  ,
 
   // Listar todas las entrada_repuestos con nombre del repuesto
   async findAll() {
     const query = `
-      SELECT e.entrada_id, e.repuesto_id, r.nombre AS repuesto, e.cantidad, 
-             e.proveedor, e.factura, e.observacion, e.fecha, e.tipo_entrada
-      FROM entrada_repuestos e
-      LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
-      ORDER BY e.fecha DESC;
-    `;
+    SELECT 
+      e.entrada_id,
+      e.repuesto_id,
+      r.nombre AS repuesto,
+      e.cantidad,
+      e.proveedor,
+      e.factura,
+      e.observacion,
+      e.fecha,
+      e.tipo_entrada,
+      u.id_usuario,
+      u.nombre AS nombre_usuario
+    FROM entrada_repuestos e
+    LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
+    ORDER BY e.fecha DESC;
+  `;
+
     const { rows } = await pool.query(query);
     return rows;
   },
+
 
   // Obtener una entrada por ID con nombre del repuesto
   async findById(id) {
