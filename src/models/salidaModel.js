@@ -2,13 +2,13 @@ const pool = require('../config/db');
 const AlertaModel = require('./alertModel');
 
 const SalidaModel = {
-  async create({ repuesto_id, cantidad, destino, observacion, fecha, tipo_salida }) {
+  async create({ repuesto_id, cantidad, destino, observacion, fecha, tipo_salida, id_usuario }) {
     const query = `
-      INSERT INTO salida_repuestos (repuesto_id, cantidad, destino, observacion, fecha, tipo_salida)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO salida_repuestos (repuesto_id, cantidad, destino, observacion, fecha, tipo_salida, id_usuario)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *;
     `;
-    const values = [repuesto_id, cantidad, destino, observacion, fecha, tipo_salida];
+    const values = [repuesto_id, cantidad, destino, observacion, fecha, tipo_salida, id_usuario];
     const { rows } = await pool.query(query, values);
     const salida = rows[0];
 
@@ -23,12 +23,23 @@ const SalidaModel = {
 
   async findAll() {
     const query = `
-      SELECT s.salida_id, s.repuesto_id, r.nombre AS repuesto, s.cantidad,
-             s.destino, s.observacion, s.fecha, s.tipo_salida
-      FROM salida_repuestos s
-      LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
-      ORDER BY s.fecha DESC;
-    `;
+    SELECT 
+      s.salida_id,
+      s.repuesto_id,
+      r.nombre AS repuesto,
+      s.cantidad,
+      s.destino,
+      s.observacion,
+      s.fecha,
+      s.tipo_salida,
+      u.id_usuario,
+      u.nombre AS nombre_usuario
+    FROM salida_repuestos s
+    LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
+    ORDER BY s.fecha DESC;
+  `;
+
     const { rows } = await pool.query(query);
     return rows;
   },
@@ -36,10 +47,20 @@ const SalidaModel = {
   // Obtener una salida por ID con nombre del repuesto
   async findById(id) {
     const query = `
-      SELECT s.salida_id, s.repuesto_id, r.nombre AS repuesto, s.cantidad,
-             s.destino, s.observacion, s.fecha, s.tipo_salida
+      SELECT
+        s.salida_id,
+        s.repuesto_id,
+        r.nombre AS repuesto,
+        s.cantidad,
+        s.destino,
+        s.observacion,
+        s.fecha,
+        s.tipo_salida,
+        u.id_usuario,
+        u.nombre AS nombre_usuario
       FROM salida_repuestos s
       LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
+      LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
       WHERE s.salida_id = $1;
     `;
     const { rows } = await pool.query(query, [id]);

@@ -10,7 +10,23 @@ const getAllRepuestos = async () => {
 
 // Obtener un repuesto por ID
 const getRepuestoById = async (id) => {
-  const result = await pool.query('SELECT * FROM repuestos WHERE repuesto_id = $1', [id]);
+  const query = `
+    SELECT 
+      repuesto_id, 
+      nombre, 
+      referencia, 
+      marca, 
+      proveedor,
+      categoria, 
+      stock, 
+      precio_unitario_costo, 
+      precio_unitario_venta,
+      creado_por,
+      fecha_actualizacion
+    FROM repuestos
+    WHERE repuesto_id = $1
+  `;
+  const result = await pool.query(query, [id]);
   return result.rows[0];
 };
 
@@ -100,19 +116,13 @@ const updateRepuesto = async (id, data, userId) => {
   return result.rows[0];
 };
 
-const deleteRepuesto = async (id, userId) => {
-  const result = await pool.query(
-    `UPDATE repuestos
-     SET estado = 'eliminado',
-         eliminado_por = $1,
-         fecha_eliminacion = NOW()
-     WHERE repuesto_id = $2
-     RETURNING *`,
-    [userId, id]
-  );
-
+const deleteRepuesto = async (id) => {
+  const result = await pool.query(`
+    DELETE FROM repuestos 
+    WHERE repuesto_id =
+     $1 RETURNING *`, [id]);
   return result.rows[0];
-};
+}
 
 
 // Obtener todos los movimientos (entradas y salidas)
