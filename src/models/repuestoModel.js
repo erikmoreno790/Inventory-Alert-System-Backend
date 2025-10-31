@@ -60,8 +60,8 @@ const createRepuesto = async (data, userId) => {
       compatibilidad,
       proveedor,
       stock,
-      stock_minimo,
-      precio_unitario_costo,
+      stock_minimo || 0,
+      precio_unitario_costo || 0,
       precio_unitario_venta,
       unidad_medida,
       estado,
@@ -129,60 +129,51 @@ const deleteRepuesto = async (id) => {
 const getAllMovements = async () => {
   const query = `
     SELECT 
-      e.entrada_id AS movimiento_id,
-      e.repuesto_id,
-      r.nombre AS repuesto,
-      e.cantidad,
-      e.proveedor AS contraparte,
-      e.factura,
-      e.observacion,
-      e.fecha,
-      e.tipo_entrada::text AS subtipo,
-      e.id_usuario,
-      u.nombre AS usuario,
-      'Entrada' AS tipo_movimiento
-    FROM entrada_repuestos e
-    LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
-    LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
+    e.entrada_id AS movimiento_id,
+    e.repuesto_id,
+    r.nombre AS repuesto,
+    r.categoria,
+    r.referencia,
+    e.cantidad,
+    e.proveedor AS contraparte,
+    e.factura,
+    e.observacion,
+    e.fecha,
+    e.tipo_entrada::text AS subtipo,
+    e.id_usuario,
+    u.nombre AS usuario,
+    'Entrada' AS tipo_movimiento
+FROM entrada_repuestos e
+LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
+LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
 
-    UNION ALL
+UNION ALL
 
-    SELECT 
-      s.salida_id AS movimiento_id,
-      s.repuesto_id,
-      r.nombre AS repuesto,
-      s.cantidad,
-      s.destino AS contraparte,
-      NULL AS factura,
-      s.observacion,
-      s.fecha,
-      s.tipo_salida::text AS subtipo,
-      s.id_usuario,
-      u.nombre AS usuario,
-      'Salida' AS tipo_movimiento
-    FROM salida_repuestos s
-    LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
-    LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
+SELECT 
+    s.salida_id AS movimiento_id,
+    s.repuesto_id,
+    r.nombre AS repuesto,
+    r.categoria,
+    r.referencia,
+    s.cantidad,
+    s.destino AS contraparte,
+    NULL AS factura,
+    s.observacion,
+    s.fecha,
+    s.tipo_salida::text AS subtipo,
+    s.id_usuario,
+    u.nombre AS usuario,
+    'Salida' AS tipo_movimiento
+FROM salida_repuestos s
+LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
+LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
 
-    ORDER BY fecha DESC;
+ORDER BY fecha DESC;
   `;
 
   const { rows } = await pool.query(query);
   return rows;
 };
-
-
-/*const getByCategoria = async (categoria) => {
-  const result = await pool.query('SELECT * FROM Repuestos WHERE categoria = $1', [categoria]);
-  return result.rows;
-};*/
-
-
-// Total repuestos agrupados por categoria
-/*const getAllRepuestosPorCategoria = async () => {
-  const result = await pool.query('SELECT categoria, COUNT(*) AS total FROM Repuestos GROUP BY categoria');
-  return result.rows;
-}*/
 
 //Cantidad total de repuestos agrupados por categoria
 const getCantidadRepuestosPorCategoria = async () => {
@@ -190,6 +181,29 @@ const getCantidadRepuestosPorCategoria = async () => {
   return result.rows;
 }
 
+// Obtener todas las categorias únicas
+const getAllCategorias = async () => {
+  const result = await pool.query('SELECT DISTINCT categoria FROM repuestos ORDER BY categoria');
+  return result.rows.map(row => row.categoria);
+};
+
+// Total cantidad de repuestos sin decimales
+const getTotalCantidadRepuestos = async () => {
+  const result = await pool.query('SELECT SUM(stock) AS total_cantidad FROM repuestos');
+  return parseInt(result.rows[0].total_cantidad, 10);
+};
+
+// Ultimos repuestos agregados y su fecha 
+const getUltimosRepuestosAgregados = async (limit = 5) => {
+  const result = await pool.query(
+    `SELECT repuesto_id, nombre, fecha_actualizacion
+      FROM repuestos
+      ORDER BY fecha_actualizacion DESC
+      LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
+}
 
 module.exports = {
   getRepuestoById,
@@ -198,5 +212,8 @@ module.exports = {
   deleteRepuesto,
   getAllRepuestos,
   getAllMovements,
-  getCantidadRepuestosPorCategoria
+  getTotalCantidadRepuestos,
+  getCantidadRepuestosPorCategoria,
+  getAllCategorias,
+  getUltimosRepuestosAgregados
 };

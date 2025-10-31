@@ -2,17 +2,19 @@ const pool = require('../config/db');
 const AlertaModel = require('./alertModel');
 
 const SalidaModel = {
-  async create({ repuesto_id, cantidad, destino, observacion, fecha, tipo_salida, id_usuario }) {
+  async create({ repuesto_id, cantidad, destino, observacion, fecha, tipo_salida }) {
     const query = `
-      INSERT INTO salida_repuestos (repuesto_id, cantidad, destino, observacion, fecha, tipo_salida, id_usuario)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *;
-    `;
-    const values = [repuesto_id, cantidad, destino, observacion, fecha, tipo_salida, id_usuario];
+    INSERT INTO salida_repuestos 
+    (repuesto_id, cantidad, destino, observacion, fecha, tipo_salida)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *;
+  `;
+
+    const values = [repuesto_id, cantidad, destino, observacion, fecha, tipo_salida];
     const { rows } = await pool.query(query, values);
     const salida = rows[0];
 
-    // Disminuir stock del repuesto
+    // 🔹 Actualizar stock correctamente
     await pool.query(
       'UPDATE repuestos SET stock = stock - $1 WHERE repuesto_id = $2;',
       [cantidad, repuesto_id]

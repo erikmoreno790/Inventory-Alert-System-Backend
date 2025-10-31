@@ -2,22 +2,15 @@ const pool = require('../config/db');
 
 const entradaModel = {
   // Crear una nueva entrada asociada al usuario que la crea
-  async create({ repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada, id_usuario }) {
+  async create({ repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada }) {
     const query = `
     INSERT INTO entrada_repuestos 
-      (repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada, id_usuario)
+      (repuesto_id, cantidad, proveedor, factura, observacion, fecha, tipo_entrada)
     VALUES 
-      ($1, $2, $3, $4, $5, $6, $7, $8)
+      ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *;
   `;
 
-    // Actualizar stock del repuesto
-    await pool.query(
-      'UPDATE repuestos SET stock = stock + $1 WHERE repuesto_id = $2;',
-      [cantidad, repuesto_id]
-    );
-
-    // Valores para la inserción
     const values = [
       repuesto_id,
       cantidad,
@@ -26,13 +19,20 @@ const entradaModel = {
       observacion,
       fecha,
       tipo_entrada,
-      id_usuario
     ];
 
+    // Ejecutar inserción
     const { rows } = await pool.query(query, values);
-    return rows[0];
-  }
-  ,
+    const entrada = rows[0];
+
+    // Actualizar stock correctamente
+    await pool.query(
+      'UPDATE repuestos SET stock = stock + $1 WHERE repuesto_id = $2;',
+      [cantidad, repuesto_id]
+    );
+
+    return entrada;
+  },
 
   // Listar todas las entrada_repuestos con nombre del repuesto
   async findAll() {

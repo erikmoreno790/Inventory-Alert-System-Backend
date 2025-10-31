@@ -2,6 +2,8 @@ const SalidaModel = require('../models/salidaModel');
 
 const salidaController = {
   async create(req, res) {
+    //ver data que se recibe
+    console.log("Datos recibidos para crear salida:", req.body);
     try {
       const salida = await SalidaModel.create(req.body);
       res.status(201).json(salida);
