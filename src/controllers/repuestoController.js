@@ -153,6 +153,34 @@ const getCantidadRepuestosPorCategoria = async (req, res) => {
   }
 };
 
+const getAllCategorias = async (req, res) => {
+  try {
+    const categorias = await Repuesto.getAllCategorias();
+    res.json(categorias);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener categorías', details: err.message });
+  }
+};
+const getUltimosRepuestosAgregados = async (req, res) => {
+  try {
+    const limit = req.query.limit || 5;
+    const repuestos = await Repuesto.getUltimosRepuestosAgregados(limit);
+    res.json(repuestos);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener últimos repuestos agregados', details: err.message });
+  }
+};
+
+const getTotalCantidadRepuestos = async (req, res) => {
+  try {
+    const total = await Repuesto.getTotalCantidadRepuestos();
+    res.json({ total });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener la cantidad total de repuestos', details: err.message });
+  }
+};
+
+
 module.exports = {
   getAll,
   getById,
@@ -164,5 +192,8 @@ module.exports = {
   getBelowStockMin, getByCategoria, getByProveedor,
   getDisponibles, getTopMinStock, getValorInventario, getCantidadPorCategoria,
   getAllMovements,
-  getCantidadRepuestosPorCategoria
+  getCantidadRepuestosPorCategoria,
+  getAllCategorias,
+  getUltimosRepuestosAgregados,
+  getTotalCantidadRepuestos
 };

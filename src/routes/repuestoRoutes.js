@@ -9,17 +9,15 @@ router.use(authenticate);
 router.get('/movimientos', repuestoController.getAllMovements); // Obtener todos los movimientos de inventario
 router.get('/categoria', authorize("admin", "user"), repuestoController.getCantidadRepuestosPorCategoria);
 //router.get('/movimientos/:id', repuestoController.getMovementsByRepuestoId); // Obtener movimientos de inventario por ID de repuesto
-
-
+router.get('/categorias/lista', repuestoController.getAllCategorias); // Obtener todas las categorías de repuestos
+router.get('/ultimos-agregados', repuestoController.getUltimosRepuestosAgregados); // Obtener los últimos repuestos agregados
+router.get('/total-cantidad', repuestoController.getTotalCantidadRepuestos); // Obtener la cantidad total de repuestos en inventario
 
 router.get('/', repuestoController.getAll);
 router.get('/:id', repuestoController.getById);
 router.post('/', repuestoController.create);
 router.put('/:id', repuestoController.update);
 router.delete('/:id', repuestoController.remove);
-
-// Consultas adicionales
-
 
 
 module.exports = router;
