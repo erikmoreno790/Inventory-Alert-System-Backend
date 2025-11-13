@@ -68,71 +68,6 @@ const remove = async (req, res) => {
   }
 };
 
-
-const getBelowStockMin = async (req, res) => {
-  try {
-    const result = await Repuesto.getBelowStockMin();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos bajo stock mínimo', details: err.message });
-  }
-};
-
-const getByCategoria = async (req, res) => {
-  try {
-    const result = await Repuesto.getByCategoria(req.params.categoria);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos por categoría', details: err.message });
-  }
-};
-
-const getByProveedor = async (req, res) => {
-  try {
-    const result = await Repuesto.getByProveedor(req.params.proveedor);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos por proveedor', details: err.message });
-  }
-};
-
-const getDisponibles = async (req, res) => {
-  try {
-    const result = await Repuesto.getDisponibles();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos disponibles', details: err.message });
-  }
-};
-
-const getTopMinStock = async (req, res) => {
-  try {
-    const limit = req.query.limit || 5;
-    const result = await Repuesto.getTopMinStock(limit);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos con menor stock', details: err.message });
-  }
-};
-
-const getValorInventario = async (req, res) => {
-  try {
-    const result = await Repuesto.getValorInventario();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al calcular valor de inventario', details: err.message });
-  }
-};
-
-const getCantidadPorCategoria = async (req, res) => {
-  try {
-    const result = await Repuesto.getCantidadPorCategoria();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener cantidad de repuestos por categoría', details: err.message });
-  }
-};
-
 const getAllMovements = async (req, res) => {
   try {
     const movements = await Repuesto.getAllMovements();
@@ -141,6 +76,71 @@ const getAllMovements = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener movimientos', details: err.message });
   }
 };
+
+const getMovementById = async (req, res) => {
+  try {
+    console.log(req.params);
+    const id = req.params.id;
+    const tipo = req.params.tipo;
+    const movement = await Repuesto.getMovementById(id, tipo)
+    res.json(movement)
+  } catch (err) {
+    res.status(500).json({
+      error: 'Error al obtener el movimiento',
+      details: err.message
+    });
+  }
+}
+
+const getMovementsByRepuestoId = async (req, res) => {
+  try {
+    const id = req.params.id
+    const movements = await Repuesto.getMovementsByRepuestoId(id);
+    res.json(movements)
+  } catch (err) {
+    res.status(500).json({
+      error: 'Error al obtener los movimientos del repuesto',
+      details: err.message
+    })
+  }
+};
+
+{/*const getBelowStockMin = async (req, res) => {
+  try {
+    const result = await Repuesto.getBelowStockMin();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener repuestos bajo stock mínimo', details: err.message });
+  }
+};*/}
+
+{/*const getByProveedor = async (req, res) => {
+  try {
+    const result = await Repuesto.getByProveedor(req.params.proveedor);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener repuestos por proveedor', details: err.message });
+  }
+};*/}
+
+{/*const getDisponibles = async (req, res) => {
+  try {
+    const result = await Repuesto.getDisponibles();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener repuestos disponibles', details: err.message });
+  }
+};*/}
+
+{/*const getTopMinStock = async (req, res) => {
+  try {
+    const limit = req.query.limit || 5;
+    const result = await Repuesto.getTopMinStock(limit);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener repuestos con menor stock', details: err.message });
+  }
+};*/}
 
 const getCantidadRepuestosPorCategoria = async (req, res) => {
   try {
@@ -161,6 +161,7 @@ const getAllCategorias = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener categorías', details: err.message });
   }
 };
+
 const getUltimosRepuestosAgregados = async (req, res) => {
   try {
     const limit = req.query.limit || 5;
@@ -187,11 +188,9 @@ module.exports = {
   create,
   update,
   remove,
-  getAll,
-  getById,
-  getBelowStockMin, getByCategoria, getByProveedor,
-  getDisponibles, getTopMinStock, getValorInventario, getCantidadPorCategoria,
   getAllMovements,
+  getMovementById,
+  getMovementsByRepuestoId,
   getCantidadRepuestosPorCategoria,
   getAllCategorias,
   getUltimosRepuestosAgregados,
