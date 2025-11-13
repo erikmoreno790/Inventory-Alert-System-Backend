@@ -4,7 +4,7 @@ const repuestoController = require('../controllers/repuestoController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 
 // Todas requieren autenticación
-//router.use(authenticate);
+router.use(authenticate);
 
 router.get('/movimientos', repuestoController.getAllMovements); // Obtener todos los movimientos de inventario
 router.get('/movimientos/:id/:tipo', repuestoController.getMovementById);
