@@ -6,6 +6,7 @@ const { authenticate, authorize } = require('../middleware/authMiddleware');
 // Todas requieren autenticación
 router.use(authenticate);
 
+router.get('/barcode/:code', repuestoController.getByBarcode); // Obtener un repuesto por código de barras
 router.get('/movimientos', repuestoController.getAllMovements); // Obtener todos los movimientos de inventario
 router.get('/movimientos/:id/:tipo', repuestoController.getMovementById);
 router.get('/movimientos/:id', repuestoController.getMovementsByRepuestoId); // Obtener movimientos de inventario por ID de repuesto

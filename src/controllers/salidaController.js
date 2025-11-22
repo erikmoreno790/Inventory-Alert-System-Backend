@@ -51,7 +51,39 @@ const salidaController = {
     } catch (err) {
       res.status(500).json({ error: "Error al eliminar salida" });
     }
+  },
+
+  async findRepuestoByBarcode(req, res) {
+    const { barcode } = req.params;
+
+  if (!barcode || barcode.trim() === '') {
+    return res.status(400).json({ message: 'Código de barras requerido' });
   }
-};
+
+  try {
+    const repuesto = await SalidaModel.findRepuestoByBarcode(barcode.trim());
+
+    if (!repuesto) {
+      return res.status(404).json({
+        message: 'Repuesto no encontrado',
+        barcode,
+      });
+    }
+
+    // Todo bien: devolvemos solo lo necesario para el frontend
+    res.json({
+      repuesto_id: repuesto.repuesto_id,
+      nombre: repuesto.nombre,
+      referencia: repuesto.referencia,
+      stock_actual: repuesto.stock,
+      codigo_barras: repuesto.codigo_barras,
+      precio_venta: repuesto.precio_venta || null,
+    });
+  } catch (error) {
+    console.error('Error en getRepuestoByBarcode:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+  }
+}
 
 module.exports = salidaController;
