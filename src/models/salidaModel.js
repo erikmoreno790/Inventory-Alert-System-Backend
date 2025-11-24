@@ -1,5 +1,5 @@
 const pool = require('../config/db');
-const AlertaModel = require('./alertModel');
+//const AlertaModel = require('./alertModel');
 
 const SalidaModel = {
   async create({ repuesto_id, cantidad, destino, observacion, fecha, tipo_salida, factura = null }) {
@@ -21,7 +21,7 @@ const SalidaModel = {
     );
 
     // Opcional: disparar alerta si el stock baja del mínimo
-    await AlertaModel.checkStockBajo(repuesto_id);
+    //await AlertaModel.checkStockBajo(repuesto_id);
 
     return salida;
   },
@@ -103,7 +103,7 @@ const SalidaModel = {
       }
     }
 
-    await AlertaModel.checkStockBajo(repuesto_id);
+    //await AlertaModel.checkStockBajo(repuesto_id);
     return salida;
   },
 
@@ -122,34 +122,6 @@ const SalidaModel = {
     return salida;
   },
 
-  // MÉTODO CORREGIDO Y MEJORADO
-  async findRepuestoByBarcode(barcode) {
-    if (!barcode || barcode.trim() === '') {
-      return null;
-    }
-
-    const query = `
-      SELECT 
-        repuesto_id,
-        nombre,
-        referencia,
-        stock,
-        codigo_barras,
-        precio_venta
-      FROM repuestos
-      WHERE codigo_barras = $1
-        AND activo = true  -- opcional: solo repuestos activos
-      LIMIT 1;
-    `;
-
-    try {
-      const { rows } = await pool.query(query, [barcode.trim()]);
-      return rows[0] || null;  // Devuelve el repuesto o null si no existe
-    } catch (error) {
-      console.error("Error buscando repuesto por código de barras:", error);
-      throw error;
-    }
-  }
 };
 
 module.exports = SalidaModel;
