@@ -1,17 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const salidaController = require('../controllers/salidaController');
+const { authenticate, authorize } = require('../middleware/authMiddleware');
 
-
+// Todas requieren autenticación
+router.use(authenticate);
 
 // CRUD básico
-router.post('/', (req, res, next) => {
-  console.log("📨 Datos recibidos en POST /salidas:");
-  console.log(req.body);
-  next(); // Continúa al controller
-}, salidaController.create);
-router.get('/', salidaController.getAll);
-router.get('/:id', salidaController.getById);
-router.delete('/:id', salidaController.delete);
+router.post('/', authorize("admin", "user"), salidaController.create);
+router.get('/', authorize("admin", "user"), salidaController.getAll);
+router.get('/:id', authorize("admin", "user"), salidaController.getById);
+router.delete('/:id', authorize("admin", "user"), salidaController.delete);
 
 module.exports = router;

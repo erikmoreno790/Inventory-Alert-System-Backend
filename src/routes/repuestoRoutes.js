@@ -6,20 +6,20 @@ const { authenticate, authorize } = require('../middleware/authMiddleware');
 // Todas requieren autenticación
 router.use(authenticate);
 
-router.get('/barcode/:code', repuestoController.getByBarcode); // Obtener un repuesto por código de barras
-router.get('/movimientos', repuestoController.getAllMovements); // Obtener todos los movimientos de inventario
-router.get('/movimientos/:id/:tipo', repuestoController.getMovementById);
-router.get('/movimientos/:id', repuestoController.getMovementsByRepuestoId); // Obtener movimientos de inventario por ID de repuesto
+router.get('/barcode/:code', authorize("admin", "user"), repuestoController.getByBarcode); // Obtener un repuesto por código de barras
+router.get('/movimientos', authorize("admin", "user"), repuestoController.getAllMovements); // Obtener todos los movimientos de inventario
+router.get('/movimientos/:id/:tipo', authorize("admin", "user"), repuestoController.getMovementById);
+router.get('/movimientos/:id', authorize("admin", "user"), repuestoController.getMovementsByRepuestoId); // Obtener movimientos de inventario por ID de repuesto
 router.get('/categoria', authorize("admin", "user"), repuestoController.getCantidadRepuestosPorCategoria);
 router.get('/categorias/lista', repuestoController.getAllCategorias); // Obtener todas las categorías de repuestos
 router.get('/ultimos-agregados', repuestoController.getUltimosRepuestosAgregados); // Obtener los últimos repuestos agregados
 router.get('/total-cantidad', repuestoController.getTotalCantidadRepuestos); // Obtener la cantidad total de repuestos en inventario
 
-router.get('/', repuestoController.getAll);
-router.get('/:id', repuestoController.getById);
-router.post('/', repuestoController.create);
-router.put('/:id', repuestoController.update);
-router.delete('/:id', repuestoController.remove);
+router.get('/', authorize("admin", "user"), repuestoController.getAll);
+router.get('/:id', authorize("admin", "user"), repuestoController.getById);
+router.post('/', authorize("admin", "user"), repuestoController.create);
+router.put('/:id', authorize("admin", "user"), repuestoController.update);
+router.delete('/:id', authorize("admin", "user"), repuestoController.remove);
 
 
 module.exports = router;
