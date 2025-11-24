@@ -19,6 +19,16 @@ const getById = async (req, res) => {
   }
 };
 
+const getByBarcode = async (req, res) => {
+  try {
+    const repuesto = await Repuesto.getRepuestoByBarcode(req.params.code);
+    if (!repuesto) return res.status(404).json({ message: 'Repuesto no encontrado' });
+    res.json(repuesto);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener el repuesto por código de barras', details: err.message });
+  } 
+};
+
 const create = async (req, res) => {
   try {
     const userId = req.user?.id_usuario; // ID del usuario autenticado
@@ -185,6 +195,7 @@ const getTotalCantidadRepuestos = async (req, res) => {
 module.exports = {
   getAll,
   getById,
+  getByBarcode,
   create,
   update,
   remove,
