@@ -17,9 +17,9 @@ router.get('/total-cantidad', repuestoController.getTotalCantidadRepuestos); // 
 
 router.get('/', authorize("admin", "user"), repuestoController.getAll);
 router.get('/:id', authorize("admin", "user"), repuestoController.getById);
-router.post('/', authorize("admin", "user"), repuestoController.create);
-router.put('/:id', authorize("admin", "user"), repuestoController.update);
-router.delete('/:id', authorize("admin", "user"), repuestoController.remove);
+router.post('/', authorize("admin"), repuestoController.create);
+router.put('/:id', authorize("admin"), repuestoController.update);
+router.delete('/:id', authorize("admin"), repuestoController.remove);
 
 
 module.exports = router;
