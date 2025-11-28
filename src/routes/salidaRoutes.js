@@ -7,9 +7,9 @@ const { authenticate, authorize } = require('../middleware/authMiddleware');
 router.use(authenticate);
 
 // CRUD básico
-router.post('/', authorize("admin", "user"), salidaController.create);
+router.post('/', authorize("admin"), salidaController.create);
 router.get('/', authorize("admin", "user"), salidaController.getAll);
 router.get('/:id', authorize("admin", "user"), salidaController.getById);
-router.delete('/:id', authorize("admin", "user"), salidaController.delete);
+router.delete('/:id', authorize("admin"), salidaController.delete);
 
 module.exports = router;

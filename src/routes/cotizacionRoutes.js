@@ -24,7 +24,7 @@ router.post('/', authorize("admin", "user"), upload.array("imagenes", 5), cotiza
 router.get('/', authorize("admin", "user"), cotizacionModel.mostrarCotizaciones);
 router.get('/:id', authorize("admin", "user"), cotizacionModel.verCotizacion);
 router.put('/:id', authorize("admin", "user"), cotizacionModel.actualizarCotizacion);
-router.delete('/:id', authorize("admin", "user"), cotizacionModel.eliminarCotizacion);
+router.delete('/:id', authorize("admin"), cotizacionModel.eliminarCotizacion);
 router.get('/approved/count', authorize("admin", "user"), cotizacionModel.contarCotizacionesAprobadas);
 
 

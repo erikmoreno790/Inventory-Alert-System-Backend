@@ -20,7 +20,7 @@ module.exports = pool;
     const nombre = 'Erik';
     const email = 'admin@gmail.com';
     const telefono = '3001234567';
-    const password = '1234'; // en texto plano solo aquí
+    const password = '22447955'; // en texto plano solo aquí
     const rol = 'admin';
 
     // Hashear la contraseña
