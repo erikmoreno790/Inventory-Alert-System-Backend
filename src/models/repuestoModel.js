@@ -1,16 +1,69 @@
 const pool = require('../config/db');
 
-// Obtener todos los repuestos
-const getAllRepuestos = async () => {
-  const result = await pool.query(`
+// Obtener todos los repuestos con paginación y filtros
+const getAllRepuestos = async (page = 1, limit = 50, filters = {}) => {
+  const offset = (page - 1) * limit;
+
+  // Construir query dinámicamente con filtros
+  let whereConditions = [];
+  let queryParams = [];
+  let paramIndex = 1;
+
+  if (filters.categoria) {
+    whereConditions.push(`LOWER(categoria) LIKE $${paramIndex}`);
+    queryParams.push(`%${filters.categoria.toLowerCase()}%`);
+    paramIndex++;
+  }
+
+  if (filters.nombre) {
+    whereConditions.push(`LOWER(nombre) LIKE $${paramIndex}`);
+    queryParams.push(`%${filters.nombre.toLowerCase()}%`);
+    paramIndex++;
+  }
+
+  if (filters.referencia) {
+    whereConditions.push(`LOWER(referencia) LIKE $${paramIndex}`);
+    queryParams.push(`%${filters.referencia.toLowerCase()}%`);
+    paramIndex++;
+  }
+
+  if (filters.marca) {
+    whereConditions.push(`LOWER(marca) = $${paramIndex}`);
+    queryParams.push(filters.marca.toLowerCase());
+    paramIndex++;
+  }
+
+  const whereClause = whereConditions.length > 0
+    ? `WHERE ${whereConditions.join(' AND ')}`
+    : '';
+
+  // Obtener total de registros con filtros
+  const countQuery = `SELECT COUNT(*) FROM repuestos ${whereClause}`;
+  const countResult = await pool.query(countQuery, queryParams);
+  const total = parseInt(countResult.rows[0].count);
+
+  // Obtener registros paginados con filtros
+  const dataQuery = `
     SELECT 
       repuesto_id, nombre, referencia, marca, proveedor, categoria, 
       stock, precio_unitario_costo, precio_unitario_venta,
-      creado_por, fecha_actualizacion, codigo_barras 
+      creado_por, fecha_actualizacion, codigo_barras, stock_minimo
     FROM repuestos 
+    ${whereClause}
     ORDER BY repuesto_id
-  `);
-  return result.rows;
+    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+  `;
+  const result = await pool.query(dataQuery, [...queryParams, limit, offset]);
+
+  return {
+    data: result.rows,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
 };
 
 // Obtener un repuesto por ID
@@ -19,8 +72,7 @@ const getRepuestoById = async (id) => {
     SELECT 
       repuesto_id, nombre, referencia, marca, proveedor, categoria, 
       stock, precio_unitario_costo, precio_unitario_venta,
-      creado_por, fecha_actualizacion, codigo_barras,
-      compatibilidad, stock_minimo, unidad_medida, estado
+      creado_por, fecha_actualizacion, codigo_barras
     FROM repuestos
     WHERE repuesto_id = $1
   `;
@@ -33,8 +85,7 @@ const getRepuestoByBarcode = async (code) => {
     SELECT
       repuesto_id, nombre, referencia, marca, proveedor, categoria,
       stock, precio_unitario_costo, precio_unitario_venta,
-      creado_por, fecha_actualizacion, codigo_barras,
-      compatibilidad, stock_minimo, unidad_medida, estado
+      creado_por, fecha_actualizacion, codigo_barras
     FROM repuestos
     WHERE codigo_barras = $1
   `;
@@ -49,38 +100,28 @@ const createRepuesto = async (data, userId) => {
     referencia,
     categoria,
     marca,
-    compatibilidad,
     proveedor,
-    stock,
-    stock_minimo,
     precio_unitario_costo,
     precio_unitario_venta,
-    unidad_medida,
-    estado,
-    codigo_barras          // <-- NUEVO
+    codigo_barras
   } = data;
 
   const result = await pool.query(
     `INSERT INTO repuestos 
-      (nombre, referencia, categoria, marca, compatibilidad, proveedor, stock, stock_minimo, 
-       precio_unitario_costo, precio_unitario_venta, unidad_medida, estado, creado_por, codigo_barras)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      (nombre, referencia, categoria, marca, proveedor, stock, 
+       precio_unitario_costo, precio_unitario_venta, creado_por, codigo_barras)
+     VALUES ($1,$2,$3,$4,$5,0,$6,$7,$8,$9)
      RETURNING *`,
     [
       nombre,
       referencia,
       categoria,
       marca,
-      compatibilidad,
       proveedor,
-      stock,
-      stock_minimo || 0,
       precio_unitario_costo || 0,
       precio_unitario_venta,
-      unidad_medida,
-      estado,
       userId,
-      codigo_barras || null        // <-- permite valor vacío o null
+      codigo_barras || null
     ]
   );
 
@@ -94,39 +135,28 @@ const updateRepuesto = async (id, data, userId) => {
     referencia,
     categoria,
     marca,
-    compatibilidad,
     proveedor,
-    stock,
-    stock_minimo,
     precio_unitario_costo,
     precio_unitario_venta,
-    unidad_medida,
-    estado,
-    codigo_barras          // <-- NUEVO
+    codigo_barras
   } = data;
 
   const result = await pool.query(
     `UPDATE repuestos 
-     SET nombre=$1, referencia=$2, categoria=$3, marca=$4, compatibilidad=$5, proveedor=$6, 
-         stock=$7, stock_minimo=$8, precio_unitario_costo=$9, precio_unitario_venta=$10,
-         unidad_medida=$11, estado=$12, codigo_barras=$13,
-         actualizado_por=$14, fecha_actualizacion=NOW()
-     WHERE repuesto_id=$15
+     SET nombre=$1, referencia=$2, categoria=$3, marca=$4, proveedor=$5,
+         precio_unitario_costo=$6, precio_unitario_venta=$7, codigo_barras=$8,
+         actualizado_por=$9, fecha_actualizacion=NOW()
+     WHERE repuesto_id=$10
      RETURNING *`,
     [
       nombre,
       referencia,
       categoria,
       marca,
-      compatibilidad,
       proveedor,
-      stock,
-      stock_minimo,
       precio_unitario_costo,
       precio_unitario_venta,
-      unidad_medida,
-      estado,
-      codigo_barras || null,   // <-- permite actualizar a null/vacío
+      codigo_barras,
       userId,
       id
     ]
@@ -144,100 +174,129 @@ const deleteRepuesto = async (id) => {
   return result.rows[0];
 };
 
-const getAllMovements = async () => {
+const getAllMovements = async (page = 1, limit = 50, filters = {}) => {
+  const offset = (page - 1) * limit;
+
+  // Construir condiciones WHERE dinámicamente
+  let whereConditions = [];
+  let queryParams = [];
+  let paramIndex = 1;
+
+  if (filters.producto) {
+    whereConditions.push(`LOWER(r.nombre) LIKE $${paramIndex}`);
+    queryParams.push(`%${filters.producto.toLowerCase()}%`);
+    paramIndex++;
+  }
+
+  if (filters.tipo) {
+    whereConditions.push(`m.tipo = $${paramIndex}`);
+    queryParams.push(filters.tipo);
+    paramIndex++;
+  }
+
+  if (filters.motivo) {
+    whereConditions.push(`LOWER(m.motivo) LIKE $${paramIndex}`);
+    queryParams.push(`%${filters.motivo.toLowerCase()}%`);
+    paramIndex++;
+  }
+
+  if (filters.categoria) {
+    whereConditions.push(`r.categoria = $${paramIndex}`);
+    queryParams.push(filters.categoria);
+    paramIndex++;
+  }
+
+  if (filters.fechaInicio) {
+    whereConditions.push(`m.fecha >= $${paramIndex}`);
+    queryParams.push(filters.fechaInicio);
+    paramIndex++;
+  }
+
+  if (filters.fechaFin) {
+    whereConditions.push(`m.fecha <= $${paramIndex}`);
+    queryParams.push(filters.fechaFin);
+    paramIndex++;
+  }
+
+  const whereClause = whereConditions.length > 0
+    ? `WHERE ${whereConditions.join(' AND ')}`
+    : '';
+
+  // Contar total de movimientos con filtros
+  const countQuery = `
+    SELECT COUNT(*) 
+    FROM movimientos_inventario m
+    LEFT JOIN repuestos r ON m.repuesto_id = r.repuesto_id
+    ${whereClause}
+  `;
+  const countResult = await pool.query(countQuery, queryParams);
+  const total = parseInt(countResult.rows[0].count);
+
+  // Obtener movimientos paginados con filtros
+  const dataParams = [...queryParams, limit, offset];
   const query = `
     SELECT 
-    e.entrada_id AS movimiento_id,
-    e.repuesto_id,
-    r.nombre AS repuesto,
-    r.categoria,
-    r.referencia,
-    e.cantidad,
-    e.proveedor AS contraparte,
-    e.factura,
-    e.observacion,
-    e.fecha,
-    e.tipo_entrada::text AS subtipo,
-    e.id_usuario,
-    u.nombre AS usuario,
-    'Entrada' AS tipo_movimiento
-FROM entrada_repuestos e
-LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
-LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
-
-UNION ALL
-
-SELECT 
-    s.salida_id AS movimiento_id,
-    s.repuesto_id,
-    r.nombre AS repuesto,
-    r.categoria,
-    r.referencia,
-    s.cantidad,
-    s.destino AS contraparte,
-    NULL AS factura,
-    s.observacion,
-    s.fecha,
-    s.tipo_salida::text AS subtipo,
-    s.id_usuario,
-    u.nombre AS usuario,
-    'Salida' AS tipo_movimiento
-FROM salida_repuestos s
-LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
-LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
-
-ORDER BY fecha DESC;
+      m.movimiento_id,
+      m.repuesto_id,
+      r.nombre AS repuesto,
+      r.categoria,
+      r.referencia,
+      m.cantidad,
+      COALESCE(m.proveedor, m.destino) AS contraparte,
+      m.factura,
+      m.observacion,
+      m.fecha,
+      m.motivo AS subtipo,
+      m.id_usuario,
+      u.nombre AS usuario,
+      m.tipo AS tipo_movimiento
+    FROM movimientos_inventario m
+    LEFT JOIN repuestos r ON m.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
+    ${whereClause}
+    ORDER BY m.fecha DESC
+    LIMIT $${paramIndex} OFFSET $${paramIndex + 1};
   `;
 
-  const { rows } = await pool.query(query);
-  return rows;
+  const { rows } = await pool.query(query, dataParams);
+
+  return {
+    data: rows,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
 };
 
 const getMovementById = async (id, tipo) => {
-
   const query = `
-      SELECT 
-        e.entrada_id AS movimiento_id,
-        e.repuesto_id,
-        r.nombre AS repuesto,
-        r.categoria,
-        r.referencia,
-        e.cantidad,
-        e.proveedor AS contraparte,
-        e.factura,
-        e.observacion,
-        e.fecha,
-        e.tipo_entrada::text AS subtipo,
-        e.id_usuario,
-        u.nombre AS usuario,
-        'Entrada' AS tipo_movimiento
-      FROM entrada_repuestos e
-      LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
-      LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
-      WHERE e.entrada_id = $1 AND $2 = 'Entrada'
-
-      UNION ALL
-
-      SELECT 
-        s.salida_id AS movimiento_id,
-        s.repuesto_id,
-        r.nombre AS repuesto,
-        r.categoria,
-        r.referencia,
-        s.cantidad,
-        s.destino AS contraparte,
-        NULL AS factura,
-        s.observacion,
-        s.fecha,
-        s.tipo_salida::text AS subtipo,
-        s.id_usuario,
-        u.nombre AS usuario,
-        'Salida' AS tipo_movimiento
-      FROM salida_repuestos s
-      LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
-      LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
-      WHERE s.salida_id = $1 AND $2 = 'Salida'
-    `;
+    SELECT 
+      m.movimiento_id,
+      m.repuesto_id,
+      r.nombre AS repuesto,
+      r.categoria,
+      r.referencia,
+      m.cantidad,
+      COALESCE(m.proveedor, m.destino) AS contraparte,
+      m.factura,
+      m.observacion,
+      m.fecha,
+      m.motivo AS subtipo,
+      m.id_usuario,
+      u.nombre AS usuario,
+      m.tipo AS tipo_movimiento,
+      m.cotizacion_id,
+      m.cliente,
+      m.vehiculo,
+      m.placa
+    FROM movimientos_inventario m
+    LEFT JOIN repuestos r ON m.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
+    WHERE m.movimiento_id = $1 AND m.tipo = $2;
+  `;
 
   const { rows } = await pool.query(query, [id, tipo]);
   return rows;
@@ -247,48 +306,25 @@ const getMovementById = async (id, tipo) => {
 const getMovementsByRepuestoId = async (id) => {
   const query = `
     SELECT 
-      e.entrada_id AS movimiento_id,
-      e.repuesto_id,
+      m.movimiento_id,
+      m.repuesto_id,
       r.nombre AS repuesto,
       r.categoria,
       r.referencia,
-      e.cantidad,
-      e.proveedor AS contraparte,
-      e.factura,
-      e.observacion,
-      e.fecha,
-      e.tipo_entrada::text AS subtipo,
-      e.id_usuario,
+      m.cantidad,
+      COALESCE(m.proveedor, m.destino) AS contraparte,
+      m.factura,
+      m.observacion,
+      m.fecha,
+      m.motivo AS subtipo,
+      m.id_usuario,
       u.nombre AS usuario,
-      'Entrada' AS tipo_movimiento
-    FROM entrada_repuestos e
-    LEFT JOIN repuestos r ON e.repuesto_id = r.repuesto_id
-    LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
-    WHERE e.repuesto_id = $1
-
-    UNION ALL
-
-    SELECT 
-      s.salida_id AS movimiento_id,
-      s.repuesto_id,
-      r.nombre AS repuesto,
-      r.categoria,
-      r.referencia,
-      s.cantidad,
-      s.destino AS contraparte,
-      NULL AS factura,
-      s.observacion,
-      s.fecha,
-      s.tipo_salida::text AS subtipo,
-      s.id_usuario,
-      u.nombre AS usuario,
-      'Salida' AS tipo_movimiento
-    FROM salida_repuestos s
-    LEFT JOIN repuestos r ON s.repuesto_id = r.repuesto_id
-    LEFT JOIN usuarios u ON s.id_usuario = u.id_usuario
-    WHERE s.repuesto_id = $1
-
-    ORDER BY fecha DESC;
+      m.tipo AS tipo_movimiento
+    FROM movimientos_inventario m
+    LEFT JOIN repuestos r ON m.repuesto_id = r.repuesto_id
+    LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
+    WHERE m.repuesto_id = $1
+    ORDER BY m.fecha DESC;
   `;
 
   const { rows } = await pool.query(query, [id]);
@@ -302,8 +338,13 @@ const getCantidadRepuestosPorCategoria = async () => {
 };
 
 const getAllCategorias = async () => {
-  const result = await pool.query('SELECT DISTINCT categoria FROM repuestos ORDER BY categoria');
+  const result = await pool.query('SELECT DISTINCT categoria FROM repuestos WHERE categoria IS NOT NULL ORDER BY categoria');
   return result.rows.map(row => row.categoria);
+};
+
+const getAllMarcas = async () => {
+  const result = await pool.query('SELECT DISTINCT marca FROM repuestos WHERE marca IS NOT NULL ORDER BY marca');
+  return result.rows.map(row => row.marca);
 };
 
 const getTotalCantidadRepuestos = async () => {
@@ -335,5 +376,6 @@ module.exports = {
   getTotalCantidadRepuestos,
   getCantidadRepuestosPorCategoria,
   getAllCategorias,
+  getAllMarcas,
   getUltimosRepuestosAgregados
 };

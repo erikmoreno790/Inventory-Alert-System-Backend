@@ -1,10 +1,31 @@
 const Repuesto = require('../models/repuestoModel');
+const MovimientoModel = require('../models/movimientoModel');
+const logger = require('../config/logger');
 
 const getAll = async (req, res) => {
   try {
-    const repuestos = await Repuesto.getAllRepuestos();
-    res.json(repuestos);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+
+    // Validar que page y limit sean números positivos
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({
+        error: 'Parámetros inválidos. Page debe ser >= 1 y limit entre 1 y 100'
+      });
+    }
+
+    // Obtener filtros opcionales
+    const filters = {
+      categoria: req.query.categoria,
+      nombre: req.query.nombre,
+      referencia: req.query.referencia,
+      marca: req.query.marca
+    };
+
+    const result = await Repuesto.getAllRepuestos(page, limit, filters);
+    res.json(result);
   } catch (err) {
+    logger.logError('Error al obtener repuestos', err);
     res.status(500).json({ error: 'Error al obtener repuestos', details: err.message });
   }
 };
@@ -26,17 +47,39 @@ const getByBarcode = async (req, res) => {
     res.json(repuesto);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener el repuesto por código de barras', details: err.message });
-  } 
+  }
 };
 
 const create = async (req, res) => {
   try {
-    const userId = req.user?.id_usuario; // ID del usuario autenticado
+    const userId = req.user?.id_usuario;
     if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
 
-    const nuevo = await Repuesto.createRepuesto(req.body, userId);
-    res.status(201).json(nuevo);
+    // Extraer datos del repuesto y de la entrada inicial
+    const { cantidad_inicial, tipo_entrada, ...repuestoData } = req.body;
+
+    // 1. Crear el repuesto (con stock inicial en 0)
+    const nuevoRepuesto = await Repuesto.createRepuesto(repuestoData, userId);
+
+    // 2. Registrar entrada inicial si cantidad_inicial > 0
+    if (cantidad_inicial && parseInt(cantidad_inicial) > 0) {
+      await MovimientoModel.create({
+        repuesto_id: nuevoRepuesto.repuesto_id,
+        tipo: 'Entrada',
+        motivo: tipo_entrada || 'creacion',
+        cantidad: parseInt(cantidad_inicial),
+        fecha: new Date(),
+        observacion: 'Entrada inicial al crear el repuesto',
+        id_usuario: userId
+      });
+    }
+
+    // 3. Recargar el repuesto para obtener el stock actualizado
+    const repuestoActualizado = await Repuesto.getRepuestoById(nuevoRepuesto.repuesto_id);
+
+    res.status(201).json(repuestoActualizado);
   } catch (err) {
+    logger.logError('Error al crear repuesto', err);
     res.status(500).json({
       error: 'Error al crear repuesto',
       details: err.message
@@ -80,9 +123,29 @@ const remove = async (req, res) => {
 
 const getAllMovements = async (req, res) => {
   try {
-    const movements = await Repuesto.getAllMovements();
-    res.json(movements);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+
+    // Validar que page y limit sean números positivos
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({
+        error: 'Parámetros inválidos. Page debe ser >= 1 y limit entre 1 y 100'
+      });
+    }
+
+    // Extraer filtros de la query
+    const filters = {};
+    if (req.query.producto) filters.producto = req.query.producto;
+    if (req.query.tipo) filters.tipo = req.query.tipo;
+    if (req.query.motivo) filters.motivo = req.query.motivo;
+    if (req.query.categoria) filters.categoria = req.query.categoria;
+    if (req.query.fechaInicio) filters.fechaInicio = req.query.fechaInicio;
+    if (req.query.fechaFin) filters.fechaFin = req.query.fechaFin;
+
+    const result = await Repuesto.getAllMovements(page, limit, filters);
+    res.json(result);
   } catch (err) {
+    logger.logError('Error al obtener movimientos', err);
     res.status(500).json({ error: 'Error al obtener movimientos', details: err.message });
   }
 };
@@ -115,50 +178,12 @@ const getMovementsByRepuestoId = async (req, res) => {
   }
 };
 
-{/*const getBelowStockMin = async (req, res) => {
-  try {
-    const result = await Repuesto.getBelowStockMin();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos bajo stock mínimo', details: err.message });
-  }
-};*/}
-
-{/*const getByProveedor = async (req, res) => {
-  try {
-    const result = await Repuesto.getByProveedor(req.params.proveedor);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos por proveedor', details: err.message });
-  }
-};*/}
-
-{/*const getDisponibles = async (req, res) => {
-  try {
-    const result = await Repuesto.getDisponibles();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos disponibles', details: err.message });
-  }
-};*/}
-
-{/*const getTopMinStock = async (req, res) => {
-  try {
-    const limit = req.query.limit || 5;
-    const result = await Repuesto.getTopMinStock(limit);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener repuestos con menor stock', details: err.message });
-  }
-};*/}
-
 const getCantidadRepuestosPorCategoria = async (req, res) => {
   try {
-    console.log("Llegó a controller");
     const result = await Repuesto.getCantidadRepuestosPorCategoria();
     res.json(result);
   } catch (err) {
-    console.error(err);
+    logger.logError('Error al obtener cantidad de repuestos por categoría', err);
     res.status(500).json({ error: 'Error al obtener cantidad de repuestos por categoría', details: err.message });
   }
 };
@@ -168,7 +193,17 @@ const getAllCategorias = async (req, res) => {
     const categorias = await Repuesto.getAllCategorias();
     res.json(categorias);
   } catch (err) {
+    logger.logError('Error al obtener categorías', err);
     res.status(500).json({ error: 'Error al obtener categorías', details: err.message });
+  }
+};
+
+const getAllMarcas = async (req, res) => {
+  try {
+    const marcas = await Repuesto.getAllMarcas();
+    res.json(marcas);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener marcas', details: err.message });
   }
 };
 
@@ -204,6 +239,7 @@ module.exports = {
   getMovementsByRepuestoId,
   getCantidadRepuestosPorCategoria,
   getAllCategorias,
+  getAllMarcas,
   getUltimosRepuestosAgregados,
   getTotalCantidadRepuestos
 };
