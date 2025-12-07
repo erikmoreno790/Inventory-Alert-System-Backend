@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const cotizacionItemController = require('../controllers/CotizacionItemController');
+const cotizacionItemController = require('../controllers/cotizacionItemController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 
 // Todas requieren autenticación
