@@ -22,9 +22,6 @@ const authenticate = (req, res, next) => {
 
 const authorize = (...roles) => {
     return (req, res, next) => {
-        // console.log(`Usuario rol: ${req.user.rol}, Roles permitidos: ${roles.join(', ')}`);
-        // console.log("Verificando autorización...");
-        // console.log("Usuario autorizado");
         if (!roles.includes(req.user.rol)) {
             return res.status(403).json({ message: 'Acceso denegado' });
         }
