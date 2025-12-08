@@ -75,18 +75,25 @@ const allowedOrigins = [
 // Configuración de CORS optimizada
 const corsOptions = {
     origin: (origin, callback) => {
-        // Permitir peticiones sin origen (Postman, cURL, etc.) en desarrollo
-        if (!origin && process.env.NODE_ENV !== 'production') {
+        // Permitir peticiones sin origen (Postman, cURL, etc.)
+        if (!origin) {
+            return callback(null, true);
+        }
+
+        // Permitir todos los dominios de Vercel (*.vercel.app)
+        if (origin.endsWith('.vercel.app')) {
+            logger.logInfo('Origen Vercel permitido', { origin });
             return callback(null, true);
         }
 
         // Permitir orígenes en la lista blanca
-        if (origin && allowedOrigins.includes(origin)) {
+        if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
 
         // En desarrollo, ser más permisivo con localhost
-        if (process.env.NODE_ENV !== 'production' && origin && origin.startsWith('http://localhost')) {
+        if (origin.startsWith('http://localhost') || origin.startsWith('http://192.168.')) {
+            logger.logInfo('Origen local permitido', { origin });
             return callback(null, true);
         }
 
