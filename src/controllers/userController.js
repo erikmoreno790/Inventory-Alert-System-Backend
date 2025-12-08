@@ -1,4 +1,5 @@
 const userModel = require('../models/userModel');
+const bcrypt = require('bcryptjs');
 
 const getAll = async (req, res) => {
     const users = await userModel.getAllUsers();
@@ -13,8 +14,21 @@ const getById = async (req, res) => {
 
 const createUser = async (req, res) => {
     try {
-        const newUser = await userModel.createUser(req.body);
-        console.log("Usuario creado:", newUser)
+        // Hash password antes de crear usuario
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ message: 'Nombre, email y contraseña son requeridos' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = await userModel.createUser({
+            name,
+            email,
+            password: hashedPassword
+        });
+
+        console.log("Usuario creado:", newUser);
         res.status(201).json(newUser);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -23,8 +37,24 @@ const createUser = async (req, res) => {
 
 //Cambiar credenciales
 const changeUserCredentials = async (req, res) => {
-    const updated = await userModel.changeUserCredentials(req.params.id, req.body);
-    res.json(updated);
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email y contraseña son requeridos' });
+        }
+
+        // Hash password antes de actualizar
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const updated = await userModel.changeUserCredentials(req.params.id, {
+            email,
+            password: hashedPassword
+        });
+
+        res.json(updated);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
 }
 
 // Asignar rol

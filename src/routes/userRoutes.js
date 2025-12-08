@@ -4,8 +4,8 @@ const { createUser, getAll, getById, update, remove, assignRole, changeUserCrede
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 
 router.use(authenticate);
-router.post('assign-role/:id', authorize('admin'), assignRole);
-router.post('change-credentials/:id', authorize('admin', 'user'), changeUserCredentials);
+router.post('/assign-role/:id', authorize('admin'), assignRole);
+router.post('/change-credentials/:id', authorize('admin', 'user'), changeUserCredentials);
 router.post('/nuevo-usuario', authorize('admin'), createUser);
 router.get('/', authorize('admin'), getAll);
 router.get('/:id', authorize('admin'), getById);

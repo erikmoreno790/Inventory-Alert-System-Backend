@@ -20,7 +20,7 @@ const createUser = async ({ name, email, password }) => {
 }
 
 const getUserById = async (id) => {
-    const res = await pool.query('SELECT id_usuario, nombre, email, telefono, rol, created_at FROM usuarios WHERE id = $1', [id]);
+    const res = await pool.query('SELECT id_usuario, nombre, email, telefono, rol, created_at FROM usuarios WHERE id_usuario = $1', [id]);
     return res.rows[0];
 };
 
@@ -45,7 +45,7 @@ const changeUserCredentials = async (id, { email, password }) => {
 // Actualizar usuario ()
 const updateUser = async (id, { name, email, telefono }) => {
     const res = await pool.query(
-        'UPDATE usuarios SET nombre = $1, email = $2, telefono = $3  WHERE id_usuario = $5 RETURNING id_usuario, nombre, email, telefono, created_at',
+        'UPDATE usuarios SET nombre = $1, email = $2, telefono = $3  WHERE id_usuario = $4 RETURNING id_usuario, nombre, email, telefono, created_at',
         [name, email, telefono, id]
     );
     return res.rows[0];
