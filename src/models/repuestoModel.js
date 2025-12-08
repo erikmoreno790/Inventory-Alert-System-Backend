@@ -47,7 +47,7 @@ const getAllRepuestos = async (page = 1, limit = 50, filters = {}) => {
     SELECT 
       repuesto_id, nombre, referencia, marca, proveedor, categoria, 
       stock, precio_unitario_costo, precio_unitario_venta,
-      creado_por, fecha_actualizacion, codigo_barras, stock_minimo
+      creado_por, fecha_actualizacion, codigo_barras
     FROM repuestos 
     ${whereClause}
     ORDER BY repuesto_id

@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const logger = require('../config/logger');
+const AlertaModel = require('./alertModel');
 
 const MovimientoModel = {
     /**
@@ -76,6 +77,15 @@ const MovimientoModel = {
             }
 
             await client.query('COMMIT');
+
+            // Generar/actualizar alertas de stock después del commit exitoso
+            try {
+                await AlertaModel.checkStockAndAlert(repuesto_id);
+            } catch (alertError) {
+                logger.logError('Error al generar alerta de stock', { error: alertError, repuesto_id });
+                // No fallamos el movimiento si falla la alerta
+            }
+
             return movimiento;
         } catch (error) {
             await client.query('ROLLBACK');
@@ -240,6 +250,16 @@ const MovimientoModel = {
             }
 
             await client.query('COMMIT');
+
+            // Generar/actualizar alertas de stock si hubo cambio
+            if (diferencia !== 0) {
+                try {
+                    await AlertaModel.checkStockAndAlert(movimientoActual.repuesto_id);
+                } catch (alertError) {
+                    logger.logError('Error al generar alerta de stock', { error: alertError, repuesto_id: movimientoActual.repuesto_id });
+                }
+            }
+
             return rows[0];
         } catch (error) {
             await client.query('ROLLBACK');
@@ -280,6 +300,14 @@ const MovimientoModel = {
             await client.query('DELETE FROM movimientos_inventario WHERE movimiento_id = $1;', [id]);
 
             await client.query('COMMIT');
+
+            // Generar/actualizar alertas de stock después de eliminar
+            try {
+                await AlertaModel.checkStockAndAlert(movimiento.repuesto_id);
+            } catch (alertError) {
+                logger.logError('Error al generar alerta de stock', { error: alertError, repuesto_id: movimiento.repuesto_id });
+            }
+
             return { message: 'Movimiento eliminado correctamente' };
         } catch (error) {
             await client.query('ROLLBACK');
