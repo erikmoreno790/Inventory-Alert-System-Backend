@@ -1,45 +1,34 @@
 const { Pool } = require('pg');
+const logger = require('./logger');
 require('dotenv').config({
   path: process.env.NODE_ENV === 'production' ? '.env' : '.env.local'
 });
-const bcrypt = require('bcrypt');
 
 // Determinar si estás en Render (producción) o en local
 const isRenderDB = process.env.DATABASE_URL?.includes('render.com');
 
-// Configuración del pool
+// Configuración optimizada del pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: isRenderDB ? { rejectUnauthorized: false } : false
+  ssl: isRenderDB ? { rejectUnauthorized: false } : false,
+  max: 20, // Máximo de conexiones en el pool
+  idleTimeoutMillis: 30000, // Cerrar conexiones inactivas después de 30s
+  connectionTimeoutMillis: 2000, // Timeout de conexión de 2s
+  maxUses: 7500, // Reciclar conexiones después de 7500 usos
 });
 
-module.exports = pool;
+// Log de eventos del pool
+pool.on('connect', () => {
+  logger.logDebug('Nueva conexión establecida con la base de datos');
+});
 
-/*(async () => {
-  try {
-    const nombre = 'Erik';
-    const email = 'admin@gmail.com';
-    const telefono = '3001234567';
-    const password = '22447955'; // en texto plano solo aquí
-    const rol = 'admin';
+pool.on('error', (err) => {
+  logger.logError('Error inesperado en el pool de conexiones', err);
+});
 
-    // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Insertar en la base
-    const res = await pool.query(
-      `INSERT INTO usuarios (nombre, email, telefono, password_hash, rol) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING id_usuario, nombre, email, rol`,
-      [nombre, email, telefono, hashedPassword, rol]
-    );
-
-    console.log('Usuario creado:', res.rows[0]);
-  } catch (err) {
-    console.error('Error:', err);
-  } finally {
-    pool.end();
-  }
-})();*/
+pool.on('remove', () => {
+  logger.logDebug('Conexión removida del pool');
+});
 
 module.exports = pool;
 

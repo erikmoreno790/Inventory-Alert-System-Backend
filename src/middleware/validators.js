@@ -47,7 +47,7 @@ const validateCreateRepuesto = [
         .trim()
         .isLength({ max: 200 }).withMessage('El nombre no puede exceder 200 caracteres'),
     body('referencia')
-        .notEmpty().withMessage('La referencia es requerida')
+        .optional()
         .trim(),
     body('categoria')
         .notEmpty().withMessage('La categoría es requerida')
@@ -58,8 +58,6 @@ const validateCreateRepuesto = [
     body('proveedor')
         .optional()
         .trim(),
-    body('stock')
-        .isInt({ min: 0 }).withMessage('El stock debe ser un número entero positivo'),
     body('stock_minimo')
         .optional()
         .isInt({ min: 0 }).withMessage('El stock mínimo debe ser un número entero positivo'),
@@ -67,6 +65,7 @@ const validateCreateRepuesto = [
         .optional()
         .isFloat({ min: 0 }).withMessage('El precio de costo debe ser un número positivo'),
     body('precio_unitario_venta')
+        .optional()
         .isFloat({ min: 0 }).withMessage('El precio de venta debe ser un número positivo'),
     body('unidad_medida')
         .optional()
@@ -77,6 +76,12 @@ const validateCreateRepuesto = [
     body('codigo_barras')
         .optional()
         .trim(),
+    body('cantidad_inicial')
+        .optional()
+        .isInt({ min: 0 }).withMessage('La cantidad inicial debe ser un número entero positivo'),
+    body('tipo_entrada')
+        .optional()
+        .isIn(['compra', 'devolucion', 'ajuste', 'creacion', 'otro']).withMessage('Tipo de entrada inválido'),
     handleValidationErrors
 ];
 

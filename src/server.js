@@ -1,9 +1,21 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const logger = require('./config/logger');
 require('dotenv').config({
     path: process.env.NODE_ENV === 'production' ? '.env' : '.env.local'
 });
+
+// Validar variables de entorno críticas
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'PORT'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+    logger.logError(`Variables de entorno faltantes: ${missingEnvVars.join(', ')}`);
+    process.exit(1);
+}
 
 const PORT = process.env.PORT || 3000;
 const DB_HOST = process.env.DB_HOST || 'localhost';
@@ -15,37 +27,83 @@ const repuestoRoutes = require('./routes/repuestoRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 const cotizacionRoutes = require('./routes/cotizacionRoutes');
 const cotizacionItemRoutes = require('./routes/cotizacionItemRoutes');
-const entradaRoutes = require('./routes/entradaRoutes');
-const salidaRoutes = require('./routes/salidaRoutes');
+const clienteRoutes = require('./routes/clienteRoutes');
+const vehiculoRoutes = require('./routes/vehiculoRoutes');
+const recordatorioRoutes = require('./routes/recordatorioRoutes');
 
 const app = express();
+
+// Rate limiter general para todas las rutas
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 100, // límite de 100 peticiones por ventana por IP
+    message: 'Demasiadas peticiones desde esta IP, por favor intenta de nuevo más tarde.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Rate limiter estricto para autenticación
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 5, // límite de 5 intentos de login por ventana
+    message: 'Demasiados intentos de inicio de sesión, por favor intenta de nuevo en 15 minutos.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Exportar para usar en rutas específicas
+app.set('authLimiter', authLimiter);
+
+// Seguridad con Helmet
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Permitir carga de recursos
+}));
+
+// Compresión de respuestas
+app.use(compression());
+
+// Rate limiting general
+app.use(generalLimiter);
 
 // Lista de orígenes permitidos
 const allowedOrigins = [
     'https://inventory-alert-system-frontend-a63pswjuh.vercel.app', // Producción en Vercel
     'http://localhost:5173',                                        // Desarrollo local (localhost)
     'http://192.168.20.83:5173',                                    // Nueva IP local que necesitas
-    // Si en el futuro tienes más IPs locales puedes ir añadiéndolas aquí
 ];
 
-// Configuración de CORS
-app.use(cors({
+// Configuración de CORS optimizada
+const corsOptions = {
     origin: (origin, callback) => {
-        // Permitir peticiones sin origen (Postman, cURL, etc.) o desde orígenes permitidos
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else if (origin && origin.endsWith('.vercel.app')) {
-            // Mantiene la flexibilidad para cualquier despliegue en Vercel
-            callback(null, true);
-        } else {
-            console.log('Origen bloqueado por CORS:', origin); // útil para depurar
-            callback(new Error('No permitido por CORS'));
+        // Permitir peticiones sin origen (Postman, cURL, etc.) en desarrollo
+        if (!origin && process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
         }
+
+        // Permitir orígenes en la lista blanca
+        if (origin && allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        // En desarrollo, ser más permisivo con localhost
+        if (process.env.NODE_ENV !== 'production' && origin && origin.startsWith('http://localhost')) {
+            return callback(null, true);
+        }
+
+        // Rechazar otros orígenes
+        logger.logWarn('Origen bloqueado por CORS', { origin });
+        callback(new Error('No permitido por CORS'));
     },
-    credentials: true,                 // Necesario si envías cookies o Authorization header con token
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    optionsSuccessStatus: 200, // Para navegadores antiguos (IE11)
+    maxAge: 86400, // Cache preflight requests por 24 horas
+    preflightContinue: false
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
@@ -57,8 +115,9 @@ app.use('/api/repuestos', repuestoRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/cotizaciones', cotizacionRoutes);
 app.use('/api/cotizacion-items', cotizacionItemRoutes);
-app.use('/api/entradas', entradaRoutes);
-app.use('/api/salidas', salidaRoutes);
+app.use('/api/clientes', clienteRoutes);
+app.use('/api/vehiculos', vehiculoRoutes);
+app.use('/api/recordatorios', recordatorioRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
@@ -66,7 +125,8 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {  // <-- Importante: escuchar en todas las interfaces
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`También accesible desde la red local en http://192.168.20.83:${PORT}`);
-    console.log(`Base de datos: ${DATABASE_URL || 'no definida'}`);
+    logger.logInfo(`Servidor corriendo en http://localhost:${PORT}`);
+    logger.logInfo(`También accesible desde la red local en http://192.168.20.83:${PORT}`);
+    logger.logInfo(`Entorno: ${process.env.NODE_ENV || 'desarrollo'}`);
+    logger.logInfo(`Base de datos: ${DATABASE_URL ? 'Configurada' : 'NO DEFINIDA'}`);
 });
