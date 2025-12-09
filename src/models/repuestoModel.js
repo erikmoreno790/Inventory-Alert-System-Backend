@@ -141,6 +141,20 @@ const updateRepuesto = async (id, data, userId) => {
     codigo_barras
   } = data;
 
+  // Verificar si el código de barras ya existe en otro repuesto
+  if (codigo_barras) {
+    const checkQuery = `
+      SELECT repuesto_id 
+      FROM repuestos 
+      WHERE codigo_barras = $1 AND repuesto_id != $2
+    `;
+    const checkResult = await pool.query(checkQuery, [codigo_barras, id]);
+
+    if (checkResult.rows.length > 0) {
+      throw new Error('El código de barras ya está asignado a otro repuesto');
+    }
+  }
+
   const result = await pool.query(
     `UPDATE repuestos 
      SET nombre=$1, referencia=$2, categoria=$3, marca=$4, proveedor=$5,
@@ -156,7 +170,7 @@ const updateRepuesto = async (id, data, userId) => {
       proveedor,
       precio_unitario_costo,
       precio_unitario_venta,
-      codigo_barras,
+      codigo_barras || null,
       userId,
       id
     ]
