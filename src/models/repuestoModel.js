@@ -141,6 +141,9 @@ const updateRepuesto = async (id, data, userId) => {
     codigo_barras
   } = data;
 
+  // Si codigo_barras está vacío o es null, usar NULL en la BD
+  const codigoBarrasValue = codigo_barras && codigo_barras.trim() !== '' ? codigo_barras : null;
+
   const result = await pool.query(
     `UPDATE repuestos 
      SET nombre=$1, referencia=$2, categoria=$3, marca=$4, proveedor=$5,
@@ -156,7 +159,7 @@ const updateRepuesto = async (id, data, userId) => {
       proveedor,
       precio_unitario_costo,
       precio_unitario_venta,
-      codigo_barras,
+      codigoBarrasValue,
       userId,
       id
     ]
