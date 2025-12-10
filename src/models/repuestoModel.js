@@ -292,12 +292,13 @@ const getMovementById = async (id, tipo) => {
       u.nombre AS usuario,
       m.tipo AS tipo_movimiento,
       m.cotizacion_id,
-      m.cliente,
-      m.vehiculo,
-      m.placa
+      COALESCE(m.cliente, c.nombre_cliente) AS cliente,
+      COALESCE(m.vehiculo, c.vehiculo) AS vehiculo,
+      COALESCE(m.placa, c.placa) AS placa
     FROM movimientos_inventario m
     LEFT JOIN repuestos r ON m.repuesto_id = r.repuesto_id
     LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
+    LEFT JOIN cotizaciones c ON m.cotizacion_id = c.id_cotizacion
     WHERE m.movimiento_id = $1 AND m.tipo = $2;
   `;
 
