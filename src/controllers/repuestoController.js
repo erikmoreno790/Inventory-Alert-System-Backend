@@ -92,10 +92,42 @@ const update = async (req, res) => {
     const userId = req.user?.id_usuario;
     if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
 
-    const actualizado = await Repuesto.updateRepuesto(req.params.id, req.body, userId);
-    if (!actualizado) return res.status(404).json({ message: 'Repuesto no encontrado' });
+    // Extraer nueva_cantidad del body si existe
+    const { nueva_cantidad, ...repuestoData } = req.body;
 
-    res.json(actualizado);
+    // 1. Obtener el repuesto actual para comparar stock
+    const repuestoActual = await Repuesto.getRepuestoById(req.params.id);
+    if (!repuestoActual) return res.status(404).json({ message: 'Repuesto no encontrado' });
+
+    // 2. Actualizar datos del repuesto (sin tocar el stock)
+    const actualizado = await Repuesto.updateRepuesto(req.params.id, repuestoData, userId);
+
+    // 3. Si se proporcionó nueva_cantidad, registrar movimiento de ajuste
+    if (nueva_cantidad !== undefined && nueva_cantidad !== null) {
+      const cantidadNueva = parseInt(nueva_cantidad);
+      const cantidadActual = parseInt(repuestoActual.stock);
+
+      if (cantidadNueva !== cantidadActual) {
+        const diferencia = cantidadNueva - cantidadActual;
+        const tipo = diferencia > 0 ? 'Entrada' : 'Salida';
+        const cantidadMovimiento = Math.abs(diferencia);
+
+        await MovimientoModel.create({
+          repuesto_id: req.params.id,
+          tipo: tipo,
+          motivo: 'ajuste',
+          cantidad: cantidadMovimiento,
+          fecha: new Date(),
+          observacion: `Ajuste posterior de cantidad. Stock anterior: ${cantidadActual}, Stock nuevo: ${cantidadNueva}`,
+          id_usuario: userId
+        });
+      }
+    }
+
+    // 4. Recargar el repuesto para obtener el stock actualizado
+    const repuestoFinal = await Repuesto.getRepuestoById(req.params.id);
+
+    res.json(repuestoFinal);
   } catch (err) {
     res.status(500).json({
       error: 'Error al actualizar repuesto',
@@ -226,6 +258,27 @@ const getTotalCantidadRepuestos = async (req, res) => {
   }
 };
 
+const createMovement = async (req, res) => {
+  try {
+    const userId = req.user?.id_usuario;
+    if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
+
+    const movementData = {
+      ...req.body,
+      id_usuario: userId
+    };
+
+    const newMovement = await MovimientoModel.create(movementData);
+    res.status(201).json(newMovement);
+  } catch (err) {
+    logger.logError('Error al crear movimiento', err);
+    res.status(500).json({
+      error: 'Error al crear movimiento',
+      details: err.message
+    });
+  }
+};
+
 
 module.exports = {
   getAll,
@@ -241,5 +294,6 @@ module.exports = {
   getAllCategorias,
   getAllMarcas,
   getUltimosRepuestosAgregados,
-  getTotalCantidadRepuestos
+  getTotalCantidadRepuestos,
+  createMovement
 };

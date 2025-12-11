@@ -11,6 +11,7 @@ router.get('/barcode/:code', authorize("admin", "user"), repuestoController.getB
 router.get('/movimientos', authorize("admin", "user"), repuestoController.getAllMovements); // Obtener todos los movimientos de inventario
 router.get('/movimientos/:id/:tipo', authorize("admin", "user"), repuestoController.getMovementById);
 router.get('/movimientos/:id', authorize("admin", "user"), repuestoController.getMovementsByRepuestoId); // Obtener movimientos de inventario por ID de repuesto
+router.post('/movimientos', authorize("admin", "user"), repuestoController.createMovement); // Crear un nuevo movimiento de inventario
 router.get('/categoria', authorize("admin", "user"), repuestoController.getCantidadRepuestosPorCategoria);
 router.get('/categorias/lista', authorize("admin", "user"), repuestoController.getAllCategorias); // Obtener todas las categorías de repuestos
 router.get('/marcas/lista', authorize("admin", "user"), repuestoController.getAllMarcas); // Obtener todas las marcas de repuestos
