@@ -16,10 +16,9 @@ const handleValidationErrors = (req, res, next) => {
 const validateLogin = [
     body('email')
         .isEmail().withMessage('Email inválido')
-        .normalizeEmail(),
+        .trim(),
     body('password')
-        .notEmpty().withMessage('La contraseña es requerida')
-        .isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres'),
+        .notEmpty().withMessage('La contraseña es requerida'),
     handleValidationErrors
 ];
 
