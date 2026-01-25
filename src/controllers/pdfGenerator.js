@@ -1,4 +1,5 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 const fs = require('fs');
 const path = require('path');
 
@@ -457,16 +458,39 @@ const generateQuotationPDF = async (cotizacion) => {
 </html>
     `;
 
-    const browser = await puppeteer.launch({ 
-        headless: true,
-        args: [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu'
-        ] 
-    });
+    // Detectar si estamos en entorno serverless (Vercel, Render, AWS Lambda, etc.)
+    const isServerless = process.env.AWS_LAMBDA_FUNCTION_NAME || 
+                        process.env.VERCEL || 
+                        process.env.RENDER ||
+                        !fs.existsSync('/usr/bin/google-chrome') && !fs.existsSync('/usr/bin/chromium-browser');
+    
+    let browser;
+    
+    if (isServerless) {
+        // Configuración para entornos serverless
+        console.log('🌐 Lanzando Chromium en modo serverless...');
+        browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+        });
+    } else {
+        // Configuración para desarrollo local
+        console.log('💻 Lanzando Puppeteer en modo local...');
+        browser = await puppeteer.launch({ 
+            headless: true,
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--disable-gpu'
+            ],
+            // En local, intentar usar la instalación local de Chrome/Chromium
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+        });
+    }
     
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
