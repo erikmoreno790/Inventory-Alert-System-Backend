@@ -6,6 +6,7 @@ const CotizacionInventarioService = require('../services/cotizacionInventarioSer
 const logger = require('../config/logger');
 const fs = require('fs');
 const path = require('path');
+const { generateQuotationPDF } = require('./pdfGenerator');
 
 const cotizacionController = {
     /**
@@ -470,6 +471,44 @@ const cotizacionController = {
             res.status(500).json({ error: 'Error al obtener estadísticas', details: err.message });
         }
     }
+,
+
+        /**
+         * Generar PDF de una cotización usando Puppeteer
+         */
+        async generatePdf(req, res) {
+                try {
+                        const { id } = req.params;
+                        const cotizacion = await CotizacionModel.findById(id);
+
+                        if (!cotizacion) {
+                                return res.status(404).json({ error: 'Cotización no encontrada' });
+                        }
+
+                        logger.logInfo(`Generando PDF para cotización ${id}`, { nombre_cliente: cotizacion.nombre_cliente });
+
+                        const pdfBuffer = await generateQuotationPDF(cotizacion);
+
+                        if (!pdfBuffer || pdfBuffer.length === 0) {
+                                throw new Error('El PDF generado está vacío');
+                        }
+
+                        logger.logInfo(`PDF generado exitosamente para cotización ${id}`, { size: pdfBuffer.length });
+
+                        res.set({
+                                'Content-Type': 'application/pdf',
+                                'Content-Disposition': `attachment; filename="Cotizacion-${(cotizacion.nombre_cliente || 'cliente').replace(/[^a-z0-9\-]/gi, '_')}.pdf"`,
+                                'Content-Length': pdfBuffer.length,
+                                'Cache-Control': 'no-cache'
+                        });
+
+                        return res.send(pdfBuffer);
+
+                } catch (error) {
+                        logger.logError('Error generando PDF de cotización', error);
+                        return res.status(500).json({ error: 'Error generando PDF', details: error.message });
+                }
+        }
 };
 
 module.exports = cotizacionController;

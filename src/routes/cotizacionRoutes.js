@@ -47,6 +47,8 @@ router.post('/validar-stock', authorize("admin", "user"), cotizacionInventarioCo
 // 🔹 Rutas de inventario con ID
 router.post('/:id/aprobar', authorize("admin", "user"), cotizacionInventarioController.aprobarCotizacion);
 router.get('/:id/movimientos', authorize("admin", "user"), cotizacionInventarioController.verMovimientos);
+// Generación de PDF con Puppeteer
+router.get('/:id/pdf', authorize("admin", "user"), cotizacionController.generatePdf);
 
 // 🔹 Rutas CRUD principales
 router.post('/', authorize("admin", "user"), upload.array("imagenes", 5), cotizacionController.create);
