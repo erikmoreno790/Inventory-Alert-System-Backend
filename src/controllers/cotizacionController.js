@@ -142,10 +142,10 @@ const cotizacionController = {
                 total
             };
 
-            const nuevaCotizacion = await CotizacionModel.create(cotizacionData);
+            const nuevaCotizacion = await CotizacionModel.create(cotizacionData, client);
             const idCotizacion = nuevaCotizacion.id_cotizacion;
 
-            // 2️⃣ Insertar items
+            // 2️⃣ Insertar items (usando client para estar dentro de la transacción)
             for (const item of itemsVinculados) {
                 await CotizacionItem.create({
                     id_cotizacion: idCotizacion,
@@ -156,16 +156,16 @@ const cotizacionController = {
                     repuesto_id: item.repuesto_id || null,
                     referencia: item.referencia || null,
                     stock_afectado: false
-                });
+                }, client);
             }
 
-            // 3️⃣ Insertar imágenes
+            // 3️⃣ Insertar imágenes (usando client para estar dentro de la transacción)
             for (const img of imagenes) {
                 const imageUrl = `uploads/${img.filename}`;
                 await CotizacionImagenModel.create({
                     id_cotizacion: idCotizacion,
                     imagen_url: imageUrl
-                });
+                }, client);
             }
 
             await client.query('COMMIT');
@@ -257,12 +257,12 @@ const cotizacionController = {
                 total
             };
 
-            await CotizacionModel.update(id, cotizacionData);
+            await CotizacionModel.update(id, cotizacionData, client);
 
             // 2️⃣ Manejar items si se enviaron
             if (items && items.length > 0) {
                 // Obtener IDs actuales de la DB
-                const existingItems = await CotizacionItem.getByCotizacionId(id);
+                const existingItems = await CotizacionItem.getByCotizacionId(id, client);
                 const existingIds = existingItems.map(i => i.id_cotizacion_item);
 
                 // Separar items a actualizar vs insertar
@@ -283,7 +283,7 @@ const cotizacionController = {
                         repuesto_id: item.repuesto_id,
                         referencia: item.referencia,
                         stock_afectado: item.stock_afectado || false
-                    });
+                    }, client);
                 }
 
                 // Insertar nuevos items
@@ -297,7 +297,7 @@ const cotizacionController = {
                         repuesto_id: item.repuesto_id || null,
                         referencia: item.referencia || null,
                         stock_afectado: false
-                    });
+                    }, client);
                 }
 
                 // Eliminar items que fueron removidos
@@ -305,7 +305,7 @@ const cotizacionController = {
                 const idsToDelete = existingIds.filter(id => !updatedIds.includes(id));
 
                 for (const itemId of idsToDelete) {
-                    await CotizacionItem.delete(itemId);
+                    await CotizacionItem.delete(itemId, client);
                 }
             }
 
