@@ -9,7 +9,8 @@ const CotizacionImagenModel = {
      * @param {Object} data - Datos de la imagen
      * @returns {Object} - Imagen creada
      */
-    async create(data) {
+    async create(data, queryRunner = null) {
+        const db = queryRunner || pool;
         const {
             id_cotizacion,
             imagen_url
@@ -22,7 +23,7 @@ const CotizacionImagenModel = {
     `;
 
         const values = [id_cotizacion, imagen_url];
-        const { rows } = await pool.query(query, values);
+        const { rows } = await db.query(query, values);
         return rows[0];
     },
 

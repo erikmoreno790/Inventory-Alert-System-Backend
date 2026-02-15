@@ -1,8 +1,9 @@
 const pool = require('../config/db');
 
 const CotizacionItem = {
-    async getByCotizacionId(idCotizacion) {
-        const { rows } = await pool.query(
+    async getByCotizacionId(idCotizacion, queryRunner = null) {
+        const db = queryRunner || pool;
+        const { rows } = await db.query(
             `SELECT ci.*
              FROM cotizacion_items ci
              WHERE ci.id_cotizacion = $1`,
@@ -11,7 +12,8 @@ const CotizacionItem = {
         return rows;
     },
 
-    async create(data) {
+    async create(data, queryRunner = null) {
+        const db = queryRunner || pool;
         const {
             id_cotizacion,
             descripcion,
@@ -22,7 +24,7 @@ const CotizacionItem = {
             referencia = null,
             stock_afectado = false
         } = data;
-        const { rows } = await pool.query(
+        const { rows } = await db.query(
             `INSERT INTO cotizacion_items 
              (id_cotizacion, descripcion, cantidad, precio_unitario, total, repuesto_id, referencia, stock_afectado)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
@@ -31,7 +33,8 @@ const CotizacionItem = {
         return rows[0];
     },
 
-    async update(id, data) {
+    async update(id, data, queryRunner = null) {
+        const db = queryRunner || pool;
         const {
             id_cotizacion,
             descripcion,
@@ -42,7 +45,7 @@ const CotizacionItem = {
             referencia,
             stock_afectado
         } = data;
-        const { rows } = await pool.query(
+        const { rows } = await db.query(
             `UPDATE cotizacion_items 
              SET id_cotizacion=$1, descripcion=$2, cantidad=$3, precio_unitario=$4, total=$5,
                  repuesto_id=$6, referencia=$7, stock_afectado=$8
@@ -52,8 +55,9 @@ const CotizacionItem = {
         return rows[0];
     },
 
-    async delete(id) {
-        await pool.query('DELETE FROM cotizacion_items WHERE id_cotizacion_item=$1', [id]);
+    async delete(id, queryRunner = null) {
+        const db = queryRunner || pool;
+        await db.query('DELETE FROM cotizacion_items WHERE id_cotizacion_item=$1', [id]);
         return { message: 'Item eliminado' };
     },
 
@@ -79,7 +83,8 @@ const CotizacionItem = {
              FROM cotizacion_items ci
              JOIN cotizaciones c ON ci.id_cotizacion = c.id_cotizacion
              WHERE ci.repuesto_id = $1
-             ORDER BY c.fecha DESC`,
+             ORDER BY c.fecha DESC
+             LIMIT 100`,
             [repuestoId]
         );
         return rows;

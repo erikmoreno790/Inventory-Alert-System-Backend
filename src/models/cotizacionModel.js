@@ -115,7 +115,8 @@ const CotizacionModel = {
      * @param {object} data - Datos de la cotización
      * @returns {object} - Cotización creada con su ID
      */
-    async create(data) {
+    async create(data, queryRunner = null) {
+        const db = queryRunner || pool; // Usa el client de transacción si se proporciona
         const {
             fecha,
             nombre_cliente,
@@ -134,7 +135,7 @@ const CotizacionModel = {
             total
         } = data;
 
-        const result = await pool.query(
+        const result = await db.query(
             `INSERT INTO cotizaciones 
             (fecha, nombre_cliente, nit_cc, telefono, vehiculo, placa, kilometraje, 
              nombre_mecanico, segundo_mecanico, observaciones, estatus, 
@@ -169,7 +170,8 @@ const CotizacionModel = {
      * @param {object} data - Datos a actualizar
      * @returns {object} - Cotización actualizada
      */
-    async update(id, data) {
+    async update(id, data, queryRunner = null) {
+        const db = queryRunner || pool;
         const {
             fecha,
             nombre_cliente,
@@ -188,7 +190,7 @@ const CotizacionModel = {
             total
         } = data;
 
-        const result = await pool.query(
+        const result = await db.query(
             `UPDATE cotizaciones SET
                 fecha=$1, nombre_cliente=$2, nit_cc=$3, telefono=$4, vehiculo=$5, 
                 placa=$6, kilometraje=$7, nombre_mecanico=$8, segundo_mecanico=$9, 

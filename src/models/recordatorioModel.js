@@ -116,9 +116,13 @@ const RecordatorioModel = {
       LEFT JOIN vehiculos v ON r.vehiculo_id = v.vehiculo_id
       ${whereClause}
       ORDER BY r.fecha_programada DESC, r.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-        const { rows } = await pool.query(query, queryParams);
+        const page = filters.page || 1;
+        const limit = filters.limit || 50;
+        const offset = (page - 1) * limit;
+        const { rows } = await pool.query(query, [...queryParams, limit, offset]);
         return rows;
     },
 
@@ -168,6 +172,7 @@ const RecordatorioModel = {
         AND r.fecha_programada <= $1
         AND c.telefono IS NOT NULL
       ORDER BY r.fecha_programada ASC
+      LIMIT 200
     `;
 
         const { rows } = await pool.query(query, [fecha]);
@@ -290,6 +295,7 @@ const RecordatorioModel = {
       LEFT JOIN vehiculos v ON r.vehiculo_id = v.vehiculo_id
       WHERE r.cliente_id = $1
       ORDER BY r.fecha_programada DESC
+      LIMIT 100
     `;
 
         const { rows } = await pool.query(query, [clienteId]);
@@ -311,6 +317,7 @@ const RecordatorioModel = {
       LEFT JOIN clientes c ON r.cliente_id = c.cliente_id
       WHERE r.vehiculo_id = $1
       ORDER BY r.fecha_programada DESC
+      LIMIT 100
     `;
 
         const { rows } = await pool.query(query, [vehiculoId]);

@@ -34,7 +34,7 @@ const ClienteModel = {
      * @param {Object} filters - Filtros opcionales
      * @returns {Array} - Lista de clientes
      */
-    async findAll(filters = {}) {
+    async findAll(filters = {}, page = 1, limit = 50) {
         let whereConditions = [];
         let queryParams = [];
         let paramIndex = 1;
@@ -71,9 +71,11 @@ const ClienteModel = {
       SELECT * FROM clientes 
       ${whereClause}
       ORDER BY nombre ASC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-        const { rows } = await pool.query(query, queryParams);
+        const offset = (page - 1) * limit;
+        const { rows } = await pool.query(query, [...queryParams, limit, offset]);
         return rows;
     },
 
@@ -120,6 +122,7 @@ const ClienteModel = {
       SELECT * FROM clientes 
       WHERE LOWER(nombre) LIKE $1 
       ORDER BY nombre ASC
+      LIMIT 50
     `;
         const { rows } = await pool.query(query, [`%${nombre.toLowerCase()}%`]);
         return rows;
@@ -201,6 +204,7 @@ const ClienteModel = {
       LEFT JOIN movimientos_inventario m ON c.cliente_id = m.cliente_id
       GROUP BY c.cliente_id
       ORDER BY c.nombre ASC
+      LIMIT 200
     `;
         const { rows } = await pool.query(query);
         return rows;

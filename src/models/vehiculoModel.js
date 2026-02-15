@@ -65,9 +65,13 @@ const VehiculoModel = {
       LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
       ${whereClause}
       ORDER BY v.placa ASC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-        const { rows } = await pool.query(query, queryParams);
+        const page = filters.page || 1;
+        const limit = filters.limit || 100;
+        const offset = (page - 1) * limit;
+        const { rows } = await pool.query(query, [...queryParams, limit, offset]);
         return rows;
     },
 
@@ -115,6 +119,7 @@ const VehiculoModel = {
       LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
       WHERE v.cliente_id = $1
       ORDER BY v.placa ASC
+      LIMIT 100
     `;
         const { rows } = await pool.query(query, [clienteId]);
         return rows;
@@ -132,6 +137,7 @@ const VehiculoModel = {
       LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
       WHERE LOWER(v.marca_modelo) LIKE $1
       ORDER BY v.placa ASC
+      LIMIT 50
     `;
         const { rows } = await pool.query(query, [`%${marcaModelo.toLowerCase()}%`]);
         return rows;
@@ -194,6 +200,7 @@ const VehiculoModel = {
       LEFT JOIN repuestos r ON m.repuesto_id = r.repuesto_id
       WHERE m.vehiculo_id = $1
       ORDER BY m.fecha DESC
+      LIMIT 100
     `;
 
         const vehiculoResult = await pool.query(vehiculoQuery, [id]);
@@ -266,6 +273,7 @@ const VehiculoModel = {
       SELECT * FROM cotizaciones 
       WHERE LOWER(placa) = LOWER($1)
       ORDER BY fecha DESC
+      LIMIT 100
     `;
         const cotizacionesResult = await pool.query(cotizacionesQuery, [vehiculo.placa]);
         vehiculo.cotizaciones = cotizacionesResult.rows;

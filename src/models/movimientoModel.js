@@ -164,7 +164,8 @@ const MovimientoModel = {
       LEFT JOIN repuestos r ON m.repuesto_id = r.repuesto_id
       LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
       ${whereClause}
-      ORDER BY m.fecha DESC;
+      ORDER BY m.fecha DESC
+      LIMIT 200
     `;
 
         const { rows } = await pool.query(query, queryParams);
@@ -335,6 +336,7 @@ const MovimientoModel = {
             LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
             WHERE m.cotizacion_id = $1
             ORDER BY m.fecha DESC
+            LIMIT 100
         `;
         const { rows } = await pool.query(query, [cotizacionId]);
         return rows;
@@ -358,6 +360,7 @@ const MovimientoModel = {
             LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
             WHERE m.cliente_id = $1
             ORDER BY m.fecha DESC
+            LIMIT 100
         `;
         const { rows } = await pool.query(query, [clienteId]);
         return rows;
@@ -381,6 +384,7 @@ const MovimientoModel = {
             LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
             WHERE m.vehiculo_id = $1
             ORDER BY m.fecha DESC
+            LIMIT 100
         `;
         const { rows } = await pool.query(query, [vehiculoId]);
         return rows;
@@ -453,6 +457,7 @@ const MovimientoModel = {
             LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
             WHERE m.fecha BETWEEN $1 AND $2
             ORDER BY m.fecha DESC
+            LIMIT 200
         `;
         const { rows } = await pool.query(query, [fechaInicio, fechaFin]);
         return rows;

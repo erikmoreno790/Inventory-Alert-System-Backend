@@ -328,7 +328,8 @@ const getMovementsByRepuestoId = async (id) => {
     LEFT JOIN repuestos r ON m.repuesto_id = r.repuesto_id
     LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
     WHERE m.repuesto_id = $1
-    ORDER BY m.fecha DESC;
+    ORDER BY m.fecha DESC
+    LIMIT 100
   `;
 
   const { rows } = await pool.query(query, [id]);

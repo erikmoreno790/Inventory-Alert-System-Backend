@@ -241,6 +241,22 @@ const AlertaModel = {
       `SELECT * FROM repuestos WHERE stock < 5 AND activo = TRUE`
     );
 
+    const repuestoIds = result.rows.map(r => r.repuesto_id);
+
+    // Batch-fetch existing active alerts for all low-stock repuestos
+    let alertasMap = {};
+    if (repuestoIds.length > 0) {
+      const alertasRes = await pool.query(
+        `SELECT DISTINCT ON (repuesto_id) * FROM alertas 
+         WHERE repuesto_id = ANY($1) AND leida = FALSE
+         ORDER BY repuesto_id, fecha DESC`,
+        [repuestoIds]
+      );
+      for (const a of alertasRes.rows) {
+        alertasMap[a.repuesto_id] = a;
+      }
+    }
+
     const resultados = {
       urgente: 0,
       alta: 0,
@@ -250,15 +266,43 @@ const AlertaModel = {
     };
 
     for (const repuesto of result.rows) {
-      const res = await this.checkStockAndAlert(repuesto.repuesto_id);
-      if (res) {
-        resultados.total++;
-        if (res.action === 'deleted') {
+      const stock = Number(repuesto.stock);
+      const prioridad = this._determinarPrioridad(stock);
+
+      // stock >= 5 shouldn't appear (WHERE clause), but be safe
+      if (stock >= 5) {
+        if (alertasMap[repuesto.repuesto_id]) {
+          await pool.query(
+            `DELETE FROM alertas WHERE repuesto_id = $1 AND leida = FALSE`,
+            [repuesto.repuesto_id]
+          );
           resultados.eliminadas++;
-        } else if (res.action === 'created' || res.action === 'updated') {
-          resultados[res.prioridad]++;
         }
+        resultados.total++;
+        continue;
       }
+
+      const mensaje = this._generarMensaje(repuesto, prioridad);
+      const alertaExistente = alertasMap[repuesto.repuesto_id];
+
+      if (alertaExistente) {
+        if (alertaExistente.prioridad !== prioridad) {
+          await pool.query(
+            `UPDATE alertas SET prioridad = $1, mensaje = $2, fecha = NOW() WHERE alerta_id = $3`,
+            [prioridad, mensaje, alertaExistente.alerta_id]
+          );
+          resultados[prioridad]++;
+        }
+      } else {
+        await this.create({
+          repuesto_id: repuesto.repuesto_id,
+          mensaje,
+          tipo: 'stock_bajo',
+          prioridad
+        });
+        resultados[prioridad]++;
+      }
+      resultados.total++;
     }
 
     return resultados;
