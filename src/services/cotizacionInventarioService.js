@@ -14,42 +14,38 @@ const CotizacionInventarioService = {
     async validarDisponibilidad(items) {
         const errors = [];
 
+        // Collect all unique references in a single batch query
+        const referencias = [...new Set(items.filter(i => i.referencia).map(i => i.referencia))];
+        if (referencias.length === 0) return { valid: true, errors: [] };
+
+        let repuestosMap = {};
+        try {
+            const { rows } = await pool.query(
+                `SELECT repuesto_id, nombre, categoria, stock, referencia 
+                 FROM repuestos 
+                 WHERE referencia = ANY($1) AND categoria = ANY($2)`,
+                [referencias, CATEGORIAS_INVENTARIO]
+            );
+            for (const r of rows) {
+                repuestosMap[r.referencia] = r;
+            }
+        } catch (error) {
+            logger.logError('Error batch validando disponibilidad', error);
+            return { valid: false, errors: [{ error: 'Error al consultar inventario' }] };
+        }
+
         for (const item of items) {
-            // Solo validar si tiene referencia (vinculado a repuesto)
             if (!item.referencia) continue;
+            const repuesto = repuestosMap[item.referencia];
+            if (!repuesto) continue; // Not a controlled part
 
-            try {
-                // Buscar repuesto por referencia
-                const { rows } = await pool.query(
-                    `SELECT repuesto_id, nombre, categoria, stock 
-                     FROM repuestos 
-                     WHERE referencia = $1 AND categoria = ANY($2)`,
-                    [item.referencia, CATEGORIAS_INVENTARIO]
-                );
-
-                if (rows.length === 0) {
-                    // No es un repuesto controlado o no existe
-                    continue;
-                }
-
-                const repuesto = rows[0];
-
-                // Validar stock suficiente
-                if (repuesto.stock < item.cantidad) {
-                    errors.push({
-                        item: item.descripcion,
-                        referencia: item.referencia,
-                        solicitado: item.cantidad,
-                        disponible: repuesto.stock,
-                        faltante: item.cantidad - repuesto.stock
-                    });
-                }
-            } catch (error) {
-                logger.logError(`Error validando disponibilidad para ${item.referencia}`, error);
+            if (repuesto.stock < item.cantidad) {
                 errors.push({
                     item: item.descripcion,
                     referencia: item.referencia,
-                    error: 'Error al consultar inventario'
+                    solicitado: item.cantidad,
+                    disponible: repuesto.stock,
+                    faltante: item.cantidad - repuesto.stock
                 });
             }
         }
@@ -66,34 +62,34 @@ const CotizacionInventarioService = {
      * @returns {Array} - Items con repuesto_id agregado
      */
     async vincularRepuestos(items) {
-        const itemsVinculados = [];
+        // Batch query all references at once
+        const referencias = [...new Set(items.filter(i => i.referencia).map(i => i.referencia))];
+        let repuestosMap = {};
 
-        for (const item of items) {
-            const itemVinculado = { ...item };
-
-            // Solo vincular si tiene referencia
-            if (item.referencia) {
-                try {
-                    const { rows } = await pool.query(
-                        `SELECT repuesto_id, categoria 
-                         FROM repuestos 
-                         WHERE referencia = $1 AND categoria = ANY($2)`,
-                        [item.referencia, CATEGORIAS_INVENTARIO]
-                    );
-
-                    if (rows.length > 0) {
-                        itemVinculado.repuesto_id = rows[0].repuesto_id;
-                        itemVinculado.categoria = rows[0].categoria;
-                    }
-                } catch (error) {
-                    logger.logError(`Error vinculando repuesto ${item.referencia}`, error);
+        if (referencias.length > 0) {
+            try {
+                const { rows } = await pool.query(
+                    `SELECT repuesto_id, categoria, referencia 
+                     FROM repuestos 
+                     WHERE referencia = ANY($1) AND categoria = ANY($2)`,
+                    [referencias, CATEGORIAS_INVENTARIO]
+                );
+                for (const r of rows) {
+                    repuestosMap[r.referencia] = r;
                 }
+            } catch (error) {
+                logger.logError('Error batch vinculando repuestos', error);
             }
-
-            itemsVinculados.push(itemVinculado);
         }
 
-        return itemsVinculados;
+        return items.map(item => {
+            const itemVinculado = { ...item };
+            if (item.referencia && repuestosMap[item.referencia]) {
+                itemVinculado.repuesto_id = repuestosMap[item.referencia].repuesto_id;
+                itemVinculado.categoria = repuestosMap[item.referencia].categoria;
+            }
+            return itemVinculado;
+        });
     },
 
     /**
