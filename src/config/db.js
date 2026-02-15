@@ -7,14 +7,15 @@ require('dotenv').config({
 // Determinar si estás en Render (producción) o en local
 const isRenderDB = process.env.DATABASE_URL?.includes('render.com');
 
-// Configuración optimizada del pool
+// Configuración optimizada del pool — reducido para planes pequeños de Render
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: isRenderDB ? { rejectUnauthorized: false } : false,
-  max: 20, // Máximo de conexiones en el pool
+  max: parseInt(process.env.DB_POOL_MAX) || 5, // Reducido de 20 a 5 para Render (evita agotar conexiones)
   idleTimeoutMillis: 30000, // Cerrar conexiones inactivas después de 30s
-  connectionTimeoutMillis: 2000, // Timeout de conexión de 2s
+  connectionTimeoutMillis: 5000, // Timeout de conexión de 5s (aumentado para cold starts)
   maxUses: 7500, // Reciclar conexiones después de 7500 usos
+  allowExitOnIdle: true, // Permite que el pool se reduzca a 0 cuando no hay actividad
 });
 
 // Log de eventos del pool

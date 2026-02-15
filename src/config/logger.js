@@ -38,24 +38,37 @@ const fileFormat = winston.format.combine(
     winston.format.json()
 );
 
-// Crear transportes
-const transports = [
-    // Errores en archivo separado
-    new winston.transports.File({
-        filename: path.join(__dirname, '../logs/error.log'),
-        level: 'error',
-        format: fileFormat,
-    }),
-    // Todos los logs en archivo combinado
-    new winston.transports.File({
-        filename: path.join(__dirname, '../logs/combined.log'),
-        format: fileFormat,
-    }),
-];
+// Crear transportes según entorno
+const transports = [];
 
-// En desarrollo, también mostrar en consola
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'production') {
+    // En producción (Render), solo consola — Render captura stdout/stderr automáticamente
+    // Los file transports son inútiles en Render (filesystem efímero) y consumen memoria
     transports.push(
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+                winston.format.errors({ stack: true }),
+                winston.format.json()
+            ),
+        })
+    );
+} else {
+    // En desarrollo, archivos con rotación + consola con colores
+    transports.push(
+        new winston.transports.File({
+            filename: path.join(__dirname, '../logs/error.log'),
+            level: 'error',
+            format: fileFormat,
+            maxsize: 5 * 1024 * 1024, // 5MB máximo
+            maxFiles: 3,
+        }),
+        new winston.transports.File({
+            filename: path.join(__dirname, '../logs/combined.log'),
+            format: fileFormat,
+            maxsize: 5 * 1024 * 1024, // 5MB máximo
+            maxFiles: 3,
+        }),
         new winston.transports.Console({
             format: consoleFormat,
         })

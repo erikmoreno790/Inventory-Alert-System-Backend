@@ -30,6 +30,7 @@ const cotizacionItemRoutes = require('./routes/cotizacionItemRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
 const vehiculoRoutes = require('./routes/vehiculoRoutes');
 const recordatorioRoutes = require('./routes/recordatorioRoutes');
+const reporteRoutes = require('./routes/reporteRoutes');
 
 const app = express();
 
@@ -112,7 +113,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' })); // Limitar tamaño de body para prevenir abuso de memoria
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 // Rutas
@@ -125,15 +126,56 @@ app.use('/api/cotizacion-items', cotizacionItemRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/vehiculos', vehiculoRoutes);
 app.use('/api/recordatorios', recordatorioRoutes);
+app.use('/api/reportes', reporteRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
     res.send(`API funcionando correctamente en entorno: ${process.env.NODE_ENV || 'desarrollo'}`);
 });
 
-app.listen(PORT, '0.0.0.0', () => {  // <-- Importante: escuchar en todas las interfaces
+// Endpoint de salud — monitoreo de memoria para diagnóstico
+app.get('/health', (req, res) => {
+    const mem = process.memoryUsage();
+    res.json({
+        status: 'ok',
+        uptime: `${(process.uptime() / 60).toFixed(1)} min`,
+        memory: {
+            rss: `${(mem.rss / 1024 / 1024).toFixed(1)} MB`,
+            heapUsed: `${(mem.heapUsed / 1024 / 1024).toFixed(1)} MB`,
+            heapTotal: `${(mem.heapTotal / 1024 / 1024).toFixed(1)} MB`,
+            external: `${(mem.external / 1024 / 1024).toFixed(1)} MB`,
+        },
+        env: process.env.NODE_ENV || 'desarrollo',
+    });
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
     logger.logInfo(`Servidor corriendo en http://localhost:${PORT}`);
-    logger.logInfo(`También accesible desde la red local en http://192.168.20.83:${PORT}`);
     logger.logInfo(`Entorno: ${process.env.NODE_ENV || 'desarrollo'}`);
     logger.logInfo(`Base de datos: ${DATABASE_URL ? 'Configurada' : 'NO DEFINIDA'}`);
 });
+
+// Graceful shutdown — libera conexiones DB correctamente al reiniciar
+const pool = require('./config/db');
+
+const gracefulShutdown = async (signal) => {
+    logger.logInfo(`${signal} recibido. Cerrando servidor...`);
+    server.close(async () => {
+        try {
+            await pool.end();
+            logger.logInfo('Pool de conexiones cerrado correctamente');
+        } catch (err) {
+            logger.logError('Error cerrando pool de conexiones', err);
+        }
+        process.exit(0);
+    });
+
+    // Forzar cierre si no termina en 10s
+    setTimeout(() => {
+        logger.logWarn('Forzando cierre después de timeout');
+        process.exit(1);
+    }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
