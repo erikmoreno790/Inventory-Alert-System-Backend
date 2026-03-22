@@ -301,6 +301,41 @@ const generateQuotationPDF = async (cotizacion) => {
             }
 
             // ============================================================
+            // CONDITIONS (Tiempo de trabajo, Validez, Garantía)
+            // ============================================================
+            if (y + 80 > doc.page.height - doc.page.margins.bottom - 120) {
+                doc.addPage();
+                y = doc.page.margins.top;
+            }
+
+            const condBoxHeight = 65;
+            doc.save();
+            doc.roundedRect(doc.page.margins.left, y, pageWidth, condBoxHeight, 6)
+               .lineWidth(1).strokeColor(COLORS.border).fillAndStroke(COLORS.lightGray, COLORS.border);
+            doc.restore();
+
+            doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.primary);
+            doc.text('Condiciones', doc.page.margins.left + 12, y + 8);
+
+            const condY = y + 26;
+            const condColWidth = pageWidth / 3;
+            const condItems = [
+                { label: 'Tiempo de Trabajo', value: cotizacion.tiempo_trabajo || '1 día' },
+                { label: 'Cotización Válida', value: cotizacion.validez_cotizacion || '5 días hábiles' },
+                { label: 'Garantía', value: cotizacion.garantia || '90 días' },
+            ];
+
+            condItems.forEach((item, idx) => {
+                const cX = doc.page.margins.left + 12 + (condColWidth * idx);
+                doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.textLight);
+                doc.text(item.label + ':', cX, condY, { width: condColWidth - 20 });
+                doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.text);
+                doc.text(item.value, cX, condY + 13, { width: condColWidth - 20 });
+            });
+
+            y += condBoxHeight + 15;
+
+            // ============================================================
             // SIGNATURES
             // ============================================================
             if (y + 100 > doc.page.height - doc.page.margins.bottom - 40) {

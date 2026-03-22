@@ -132,15 +132,19 @@ const CotizacionModel = {
             porcentaje_descuento,
             descuento,
             subtotal,
-            total
+            total,
+            tiempo_trabajo,
+            validez_cotizacion,
+            garantia
         } = data;
 
         const result = await db.query(
             `INSERT INTO cotizaciones 
             (fecha, nombre_cliente, nit_cc, telefono, vehiculo, placa, kilometraje, 
              nombre_mecanico, segundo_mecanico, observaciones, estatus, 
-             porcentaje_descuento, descuento, subtotal, total)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+             porcentaje_descuento, descuento, subtotal, total,
+             tiempo_trabajo, validez_cotizacion, garantia)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             RETURNING *`,
             [
                 fecha || new Date().toISOString().split('T')[0],
@@ -157,7 +161,10 @@ const CotizacionModel = {
                 porcentaje_descuento || 0,
                 descuento || 0,
                 subtotal || 0,
-                total || 0
+                total || 0,
+                tiempo_trabajo || '1 día',
+                validez_cotizacion || '5 días hábiles',
+                garantia || '90 días'
             ]
         );
 
@@ -187,7 +194,10 @@ const CotizacionModel = {
             porcentaje_descuento,
             descuento,
             subtotal,
-            total
+            total,
+            tiempo_trabajo,
+            validez_cotizacion,
+            garantia
         } = data;
 
         const result = await db.query(
@@ -195,8 +205,9 @@ const CotizacionModel = {
                 fecha=$1, nombre_cliente=$2, nit_cc=$3, telefono=$4, vehiculo=$5, 
                 placa=$6, kilometraje=$7, nombre_mecanico=$8, segundo_mecanico=$9, 
                 observaciones=$10, estatus=$11, porcentaje_descuento=$12, 
-                descuento=$13, subtotal=$14, total=$15
-            WHERE id_cotizacion=$16
+                descuento=$13, subtotal=$14, total=$15,
+                tiempo_trabajo=$16, validez_cotizacion=$17, garantia=$18
+            WHERE id_cotizacion=$19
             RETURNING *`,
             [
                 fecha,
@@ -214,6 +225,9 @@ const CotizacionModel = {
                 descuento || 0,
                 subtotal || 0,
                 total || 0,
+                tiempo_trabajo || '1 día',
+                validez_cotizacion || '5 días hábiles',
+                garantia || '90 días',
                 id
             ]
         );
