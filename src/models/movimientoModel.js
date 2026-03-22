@@ -8,7 +8,7 @@ const MovimientoModel = {
      * @param {Object} data - Datos del movimiento
      * @returns {Object} - Movimiento creado
      */
-    async create(data) {
+    async create(data, externalClient = null) {
         const {
             repuesto_id,
             tipo, // 'Entrada' o 'Salida'
@@ -26,10 +26,11 @@ const MovimientoModel = {
             placa = null
         } = data;
 
-        const client = await pool.connect();
+        const ownClient = !externalClient;
+        const client = externalClient || await pool.connect();
 
         try {
-            await client.query('BEGIN');
+            if (ownClient) await client.query('BEGIN');
 
             // Insertar movimiento
             const insertQuery = `
@@ -76,7 +77,7 @@ const MovimientoModel = {
                 }
             }
 
-            await client.query('COMMIT');
+            if (ownClient) await client.query('COMMIT');
 
             // Generar/actualizar alertas de stock después del commit exitoso
             try {
@@ -88,10 +89,10 @@ const MovimientoModel = {
 
             return movimiento;
         } catch (error) {
-            await client.query('ROLLBACK');
+            if (ownClient) await client.query('ROLLBACK');
             throw error;
         } finally {
-            client.release();
+            if (ownClient) client.release();
         }
     },
 
@@ -273,11 +274,12 @@ const MovimientoModel = {
     /**
      * Eliminar un movimiento y ajustar stock
      */
-    async delete(id) {
-        const client = await pool.connect();
+    async delete(id, externalClient = null) {
+        const ownClient = !externalClient;
+        const client = externalClient || await pool.connect();
 
         try {
-            await client.query('BEGIN');
+            if (ownClient) await client.query('BEGIN');
 
             const movimiento = await this.findById(id);
             if (!movimiento) {
@@ -300,7 +302,7 @@ const MovimientoModel = {
             // Eliminar movimiento
             await client.query('DELETE FROM movimientos_inventario WHERE movimiento_id = $1;', [id]);
 
-            await client.query('COMMIT');
+            if (ownClient) await client.query('COMMIT');
 
             // Generar/actualizar alertas de stock después de eliminar
             try {
@@ -311,10 +313,10 @@ const MovimientoModel = {
 
             return { message: 'Movimiento eliminado correctamente' };
         } catch (error) {
-            await client.query('ROLLBACK');
+            if (ownClient) await client.query('ROLLBACK');
             throw error;
         } finally {
-            client.release();
+            if (ownClient) client.release();
         }
     },
 

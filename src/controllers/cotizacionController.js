@@ -91,7 +91,10 @@ const cotizacionController = {
                 subtotal,
                 descuento,
                 total,
-                items
+                items,
+                tiempo_trabajo,
+                validez_cotizacion,
+                garantia
             } = req.body;
 
             const imagenes = req.files || [];
@@ -139,7 +142,10 @@ const cotizacionController = {
                 porcentaje_descuento,
                 descuento,
                 subtotal,
-                total
+                total,
+                tiempo_trabajo,
+                validez_cotizacion,
+                garantia
             };
 
             const nuevaCotizacion = await CotizacionModel.create(cotizacionData, client);
@@ -213,7 +219,10 @@ const cotizacionController = {
                 descuento,
                 subtotal,
                 total,
-                items
+                items,
+                tiempo_trabajo,
+                validez_cotizacion,
+                garantia
             } = req.body;
 
             // 🔹 Obtener estatus anterior
@@ -225,6 +234,31 @@ const cotizacionController = {
 
             const estatusAnterior = cotizacionAnterior.estatus;
             const inventarioProcesado = cotizacionAnterior.inventario_procesado;
+
+            // 🔹 Validar transiciones de estado permitidas
+            if (estatus && estatus !== estatusAnterior) {
+                const transicionesPermitidas = {
+                    'Pendiente': ['Aprobada', 'Rechazada'],
+                    'Aprobada': ['Rechazada'],
+                    'Rechazada': []
+                };
+
+                const permitidas = transicionesPermitidas[estatusAnterior] || [];
+                if (!permitidas.includes(estatus)) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        error: `No se puede cambiar el estado de "${estatusAnterior}" a "${estatus}"`
+                    });
+                }
+            }
+
+            // 🔹 Bloquear edición de cotizaciones aprobadas (solo permitir cambio de estado)
+            if (estatusAnterior === 'Aprobada' && estatus !== 'Rechazada') {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    error: 'No se puede editar una cotización aprobada. Solo se permite rechazarla.'
+                });
+            }
 
             // 🔹 Validar disponibilidad de stock si hay items
             if (items && items.length > 0) {
@@ -254,7 +288,10 @@ const cotizacionController = {
                 porcentaje_descuento,
                 descuento,
                 subtotal,
-                total
+                total,
+                tiempo_trabajo,
+                validez_cotizacion,
+                garantia
             };
 
             await CotizacionModel.update(id, cotizacionData, client);
@@ -311,26 +348,18 @@ const cotizacionController = {
 
             // 🔹 Procesar inventario si se aprueba la cotización
             if (estatus === 'Aprobada' && estatusAnterior !== 'Aprobada') {
-                try {
-                    const resultado = await CotizacionInventarioService.procesarSalidaInventario(
-                        id,
-                        req.user?.id_usuario
-                    );
-                    logger.logInfo(`Inventario procesado para cotización ${id}`, resultado);
-                } catch (error) {
-                    logger.logError(`Error procesando inventario de cotización ${id}`, error);
-                    // No fallar la actualización completa, solo advertir
-                }
+                const resultado = await CotizacionInventarioService.procesarSalidaInventario(
+                    id,
+                    req.user?.id_usuario,
+                    client
+                );
+                logger.logInfo(`Inventario procesado para cotización ${id}`, resultado);
             }
 
             // 🔹 Revertir inventario si se rechaza una cotización aprobada
             if (estatus === 'Rechazada' && estatusAnterior === 'Aprobada' && inventarioProcesado) {
-                try {
-                    const resultado = await CotizacionInventarioService.revertirSalidaInventario(id);
-                    logger.logInfo(`Inventario revertido para cotización ${id}`, resultado);
-                } catch (error) {
-                    logger.logError(`Error revirtiendo inventario de cotización ${id}`, error);
-                }
+                const resultado = await CotizacionInventarioService.revertirSalidaInventario(id, client);
+                logger.logInfo(`Inventario revertido para cotización ${id}`, resultado);
             }
 
             await client.query('COMMIT');

@@ -2,9 +2,6 @@ const pool = require('../config/db');
 const MovimientoModel = require('../models/movimientoModel');
 const logger = require('../config/logger');
 
-// Categorías que afectan inventario
-const CATEGORIAS_INVENTARIO = ['Amortiguador', 'Disco', 'Campana'];
-
 const CotizacionInventarioService = {
     /**
      * Validar disponibilidad de stock para items de cotización
@@ -23,8 +20,8 @@ const CotizacionInventarioService = {
             const { rows } = await pool.query(
                 `SELECT repuesto_id, nombre, categoria, stock, referencia 
                  FROM repuestos 
-                 WHERE referencia = ANY($1) AND categoria = ANY($2)`,
-                [referencias, CATEGORIAS_INVENTARIO]
+                 WHERE referencia = ANY($1)`,
+                [referencias]
             );
             for (const r of rows) {
                 repuestosMap[r.referencia] = r;
@@ -71,8 +68,8 @@ const CotizacionInventarioService = {
                 const { rows } = await pool.query(
                     `SELECT repuesto_id, categoria, referencia 
                      FROM repuestos 
-                     WHERE referencia = ANY($1) AND categoria = ANY($2)`,
-                    [referencias, CATEGORIAS_INVENTARIO]
+                     WHERE referencia = ANY($1)`,
+                    [referencias]
                 );
                 for (const r of rows) {
                     repuestosMap[r.referencia] = r;
@@ -85,7 +82,10 @@ const CotizacionInventarioService = {
         return items.map(item => {
             const itemVinculado = { ...item };
             if (item.referencia && repuestosMap[item.referencia]) {
-                itemVinculado.repuesto_id = repuestosMap[item.referencia].repuesto_id;
+                // Solo asignar repuesto_id si el item no tiene uno del frontend
+                if (!itemVinculado.repuesto_id) {
+                    itemVinculado.repuesto_id = repuestosMap[item.referencia].repuesto_id;
+                }
                 itemVinculado.categoria = repuestosMap[item.referencia].categoria;
             }
             return itemVinculado;
@@ -97,11 +97,12 @@ const CotizacionInventarioService = {
      * @param {Number} idCotizacion - ID de la cotización aprobada
      * @param {Number} idUsuario - ID del usuario que aprueba
      */
-    async procesarSalidaInventario(idCotizacion, idUsuario = null) {
-        const client = await pool.connect();
+    async procesarSalidaInventario(idCotizacion, idUsuario = null, externalClient = null) {
+        const ownClient = !externalClient;
+        const client = externalClient || await pool.connect();
 
         try {
-            await client.query('BEGIN');
+            if (ownClient) await client.query('BEGIN');
 
             // Obtener datos de la cotización
             const cotizacionRes = await client.query(
@@ -144,7 +145,7 @@ const CotizacionInventarioService = {
             // Crear salida para cada item
             for (const item of itemsRes.rows) {
                 try {
-                    // Crear movimiento de salida
+                    // Crear movimiento de salida (reusar la transacción)
                     const movimiento = await MovimientoModel.create({
                         repuesto_id: item.repuesto_id,
                         tipo: 'Salida',
@@ -158,7 +159,7 @@ const CotizacionInventarioService = {
                         cliente: cotizacion.nombre_cliente,
                         vehiculo: cotizacion.vehiculo,
                         placa: cotizacion.placa
-                    });
+                    }, client);
 
                     // Marcar item como procesado
                     await client.query(
@@ -188,7 +189,7 @@ const CotizacionInventarioService = {
                 [idCotizacion]
             );
 
-            await client.query('COMMIT');
+            if (ownClient) await client.query('COMMIT');
 
             return {
                 procesado: true,
@@ -197,11 +198,11 @@ const CotizacionInventarioService = {
             };
 
         } catch (error) {
-            await client.query('ROLLBACK');
+            if (ownClient) await client.query('ROLLBACK');
             logger.logError(`Error procesando inventario de cotización ${idCotizacion}`, error);
             throw error;
         } finally {
-            client.release();
+            if (ownClient) client.release();
         }
     },
 
@@ -209,11 +210,12 @@ const CotizacionInventarioService = {
      * Revertir salida de inventario (si se rechaza una cotización aprobada)
      * @param {Number} idCotizacion - ID de la cotización
      */
-    async revertirSalidaInventario(idCotizacion) {
-        const client = await pool.connect();
+    async revertirSalidaInventario(idCotizacion, externalClient = null) {
+        const ownClient = !externalClient;
+        const client = externalClient || await pool.connect();
 
         try {
-            await client.query('BEGIN');
+            if (ownClient) await client.query('BEGIN');
 
             // Buscar movimientos relacionados con esta cotización
             const movimientosRes = await client.query(
@@ -223,9 +225,9 @@ const CotizacionInventarioService = {
                 [idCotizacion]
             );
 
-            // Eliminar cada movimiento (esto revertirá el stock automáticamente)
+            // Eliminar cada movimiento (reusar la transacción)
             for (const mov of movimientosRes.rows) {
-                await MovimientoModel.delete(mov.movimiento_id);
+                await MovimientoModel.delete(mov.movimiento_id, client);
             }
 
             // Resetear flags
@@ -243,7 +245,7 @@ const CotizacionInventarioService = {
                 [idCotizacion]
             );
 
-            await client.query('COMMIT');
+            if (ownClient) await client.query('COMMIT');
 
             return {
                 revertido: true,
@@ -251,10 +253,10 @@ const CotizacionInventarioService = {
             };
 
         } catch (error) {
-            await client.query('ROLLBACK');
+            if (ownClient) await client.query('ROLLBACK');
             throw error;
         } finally {
-            client.release();
+            if (ownClient) client.release();
         }
     }
 };

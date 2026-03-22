@@ -18,7 +18,6 @@ if (missingEnvVars.length > 0) {
 }
 
 const PORT = process.env.PORT || 3000;
-const DB_HOST = process.env.DB_HOST || 'localhost';
 const DATABASE_URL = process.env.DATABASE_URL;
 
 const authRoutes = require('./routes/authRoutes');

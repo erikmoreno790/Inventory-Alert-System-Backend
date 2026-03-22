@@ -23,13 +23,20 @@ const CotizacionInventarioController = {
                 );
 
                 if (cotizacionRes.rows.length === 0) {
+                    await client.query('ROLLBACK');
                     return res.status(404).json({ error: 'Cotización no encontrada' });
                 }
 
                 const cotizacion = cotizacionRes.rows[0];
 
                 if (cotizacion.estatus === 'Aprobada') {
+                    await client.query('ROLLBACK');
                     return res.status(400).json({ error: 'La cotización ya está aprobada' });
+                }
+
+                if (cotizacion.estatus === 'Rechazada') {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ error: 'No se puede aprobar una cotización rechazada' });
                 }
 
                 // Actualizar estatus a Aprobada
@@ -38,10 +45,10 @@ const CotizacionInventarioController = {
                     ['Aprobada', id]
                 );
 
-                await client.query('COMMIT');
+                // Procesar inventario dentro de la misma transacción
+                const resultado = await CotizacionInventarioService.procesarSalidaInventario(id, idUsuario, client);
 
-                // Procesar inventario
-                const resultado = await CotizacionInventarioService.procesarSalidaInventario(id, idUsuario);
+                await client.query('COMMIT');
 
                 res.json({
                     mensaje: 'Cotización aprobada exitosamente',
