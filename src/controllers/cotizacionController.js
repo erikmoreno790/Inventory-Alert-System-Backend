@@ -505,6 +505,110 @@ const cotizacionController = {
         /**
          * Generar PDF de una cotización usando Puppeteer
          */
+    /**
+     * Subir imágenes a una cotización existente
+     */
+    async uploadImages(req, res) {
+        try {
+            const { id } = req.params;
+            const imagenes = req.files || [];
+
+            if (imagenes.length === 0) {
+                return res.status(400).json({ error: 'No se enviaron imágenes' });
+            }
+
+            // Verificar que la cotización existe
+            const cotizacion = await CotizacionModel.findById(id);
+            if (!cotizacion) {
+                return res.status(404).json({ error: 'Cotización no encontrada' });
+            }
+
+            // Verificar límite de 5 imágenes totales
+            const existingCount = await CotizacionImagenModel.countByCotizacionId(id);
+            if (existingCount + imagenes.length > 5) {
+                // Eliminar archivos subidos que exceden el límite
+                for (const img of imagenes) {
+                    fs.unlink(img.path, () => {});
+                }
+                return res.status(400).json({
+                    error: `Solo se permiten 5 imágenes por cotización. Ya tiene ${existingCount}.`
+                });
+            }
+
+            const imagenesCreadas = [];
+            for (const img of imagenes) {
+                const imageUrl = `uploads/${img.filename}`;
+                const imagen = await CotizacionImagenModel.create({
+                    id_cotizacion: id,
+                    imagen_url: imageUrl
+                });
+                imagenesCreadas.push({
+                    ...imagen,
+                    url: `${req.protocol}://${req.get('host')}/${imageUrl}`
+                });
+            }
+
+            logger.logInfo('Imágenes subidas a cotización', { id, cantidad: imagenes.length });
+            res.status(201).json({ imagenes: imagenesCreadas });
+        } catch (error) {
+            logger.logError('Error al subir imágenes', error);
+            res.status(500).json({ error: 'Error al subir imágenes', details: error.message });
+        }
+    },
+
+    /**
+     * Eliminar una imagen de una cotización
+     */
+    async deleteImage(req, res) {
+        try {
+            const { id } = req.params;
+            const { imagen_url } = req.body;
+
+            if (!imagen_url) {
+                return res.status(400).json({ error: 'Se requiere imagen_url' });
+            }
+
+            // Verificar que la cotización existe
+            const cotizacion = await CotizacionModel.findById(id);
+            if (!cotizacion) {
+                return res.status(404).json({ error: 'Cotización no encontrada' });
+            }
+
+            // Extraer la ruta relativa de la URL completa
+            let relativePath = imagen_url;
+            if (imagen_url.includes('/uploads/')) {
+                relativePath = 'uploads/' + imagen_url.split('/uploads/').pop();
+            }
+
+            // Buscar la imagen en la BD
+            const imagenes = await CotizacionImagenModel.findByCotizacionId(id);
+            const imagen = imagenes.find(img => img.imagen_url === relativePath);
+
+            if (!imagen) {
+                return res.status(404).json({ error: 'Imagen no encontrada en esta cotización' });
+            }
+
+            // Eliminar archivo físico
+            const filePath = path.join(__dirname, '..', 'public', relativePath);
+            fs.unlink(filePath, (err) => {
+                if (err) {
+                    logger.logWarn('No se pudo borrar imagen física', { filePath, error: err.message });
+                } else {
+                    logger.logInfo('Imagen física eliminada', { filePath });
+                }
+            });
+
+            // Eliminar registro de BD
+            await CotizacionImagenModel.delete(imagen.id_imagen);
+
+            logger.logInfo('Imagen eliminada de cotización', { id, imagen_url: relativePath });
+            res.json({ message: 'Imagen eliminada correctamente' });
+        } catch (error) {
+            logger.logError('Error al eliminar imagen', error);
+            res.status(500).json({ error: 'Error al eliminar imagen', details: error.message });
+        }
+    },
+
         async generatePdf(req, res) {
                 try {
                         const { id } = req.params;

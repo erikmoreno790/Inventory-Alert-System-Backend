@@ -50,6 +50,10 @@ router.get('/:id/movimientos', authorize("admin", "user"), cotizacionInventarioC
 // Generación de PDF con Puppeteer
 router.get('/:id/pdf', authorize("admin", "user"), cotizacionController.generatePdf);
 
+// 🔹 Rutas de imágenes
+router.post('/:id/imagenes', authorize("admin", "user"), upload.array("imagenes", 5), cotizacionController.uploadImages);
+router.delete('/:id/imagenes', authorize("admin", "user"), cotizacionController.deleteImage);
+
 // 🔹 Rutas CRUD principales
 router.post('/', authorize("admin", "user"), upload.array("imagenes", 5), cotizacionController.create);
 router.get('/', authorize("admin", "user"), cotizacionController.getAll);
