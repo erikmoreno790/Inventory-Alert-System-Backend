@@ -93,14 +93,14 @@ const update = async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
 
     // Extraer nueva_cantidad del body si existe
-    const { nueva_cantidad, ...repuestoData } = req.body;
+    const { nueva_cantidad, stock_minimo, ...repuestoData } = req.body;
 
     // 1. Obtener el repuesto actual para comparar stock
     const repuestoActual = await Repuesto.getRepuestoById(req.params.id);
     if (!repuestoActual) return res.status(404).json({ message: 'Repuesto no encontrado' });
 
     // 2. Actualizar datos del repuesto (sin tocar el stock)
-    const actualizado = await Repuesto.updateRepuesto(req.params.id, repuestoData, userId);
+    const actualizado = await Repuesto.updateRepuesto(req.params.id, { ...repuestoData, stock_minimo }, userId);
 
     // 3. Si se proporcionó nueva_cantidad, registrar movimiento de ajuste
     if (nueva_cantidad !== undefined && nueva_cantidad !== null) {

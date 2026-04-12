@@ -30,6 +30,7 @@ const clienteRoutes = require('./routes/clienteRoutes');
 const vehiculoRoutes = require('./routes/vehiculoRoutes');
 const recordatorioRoutes = require('./routes/recordatorioRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
@@ -126,6 +127,7 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/vehiculos', vehiculoRoutes);
 app.use('/api/recordatorios', recordatorioRoutes);
 app.use('/api/reportes', reporteRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {

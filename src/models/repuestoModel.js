@@ -46,7 +46,7 @@ const getAllRepuestos = async (page = 1, limit = 50, filters = {}) => {
   const dataQuery = `
     SELECT 
       repuesto_id, nombre, referencia, marca, proveedor, categoria, 
-      stock, precio_unitario_costo, precio_unitario_venta,
+      stock, stock_minimo, precio_unitario_costo, precio_unitario_venta,
       creado_por, fecha_actualizacion, codigo_barras
     FROM repuestos 
     ${whereClause}
@@ -71,7 +71,7 @@ const getRepuestoById = async (id) => {
   const query = `
     SELECT 
       repuesto_id, nombre, referencia, marca, proveedor, categoria, 
-      stock, precio_unitario_costo, precio_unitario_venta,
+      stock, stock_minimo, precio_unitario_costo, precio_unitario_venta,
       creado_por, fecha_actualizacion, codigo_barras
     FROM repuestos
     WHERE repuesto_id = $1
@@ -84,7 +84,7 @@ const getRepuestoByBarcode = async (code) => {
   const query = `
     SELECT
       repuesto_id, nombre, referencia, marca, proveedor, categoria,
-      stock, precio_unitario_costo, precio_unitario_venta,
+      stock, stock_minimo, precio_unitario_costo, precio_unitario_venta,
       creado_por, fecha_actualizacion, codigo_barras
     FROM repuestos
     WHERE codigo_barras = $1
@@ -103,14 +103,15 @@ const createRepuesto = async (data, userId) => {
     proveedor,
     precio_unitario_costo,
     precio_unitario_venta,
-    codigo_barras
+    codigo_barras,
+    stock_minimo
   } = data;
 
   const result = await pool.query(
     `INSERT INTO repuestos 
-      (nombre, referencia, categoria, marca, proveedor, stock, 
+      (nombre, referencia, categoria, marca, proveedor, stock, stock_minimo,
        precio_unitario_costo, precio_unitario_venta, creado_por, codigo_barras)
-     VALUES ($1,$2,$3,$4,$5,0,$6,$7,$8,$9)
+     VALUES ($1,$2,$3,$4,$5,0,$6,$7,$8,$9,$10)
      RETURNING *`,
     [
       nombre,
@@ -118,6 +119,7 @@ const createRepuesto = async (data, userId) => {
       categoria,
       marca,
       proveedor,
+      stock_minimo != null ? parseInt(stock_minimo) : 5,
       precio_unitario_costo || 0,
       precio_unitario_venta,
       userId,
@@ -138,7 +140,8 @@ const updateRepuesto = async (id, data, userId) => {
     proveedor,
     precio_unitario_costo,
     precio_unitario_venta,
-    codigo_barras
+    codigo_barras,
+    stock_minimo
   } = data;
 
   // Si codigo_barras está vacío o es null, usar NULL en la BD
@@ -148,8 +151,8 @@ const updateRepuesto = async (id, data, userId) => {
     `UPDATE repuestos 
      SET nombre=$1, referencia=$2, categoria=$3, marca=$4, proveedor=$5,
          precio_unitario_costo=$6, precio_unitario_venta=$7, codigo_barras=$8,
-         actualizado_por=$9, fecha_actualizacion=NOW()
-     WHERE repuesto_id=$10
+         stock_minimo=$9, actualizado_por=$10, fecha_actualizacion=NOW()
+     WHERE repuesto_id=$11
      RETURNING *`,
     [
       nombre,
@@ -160,6 +163,7 @@ const updateRepuesto = async (id, data, userId) => {
       precio_unitario_costo,
       precio_unitario_venta,
       codigoBarrasValue,
+      stock_minimo != null ? parseInt(stock_minimo) : 5,
       userId,
       id
     ]
@@ -359,7 +363,7 @@ const getTotalCantidadRepuestos = async () => {
 
 const getUltimosRepuestosAgregados = async (limit = 5) => {
   const result = await pool.query(
-    `SELECT repuesto_id, nombre, fecha_actualizacion, codigo_barras
+    `SELECT repuesto_id, nombre, categoria, stock, referencia, fecha_actualizacion, codigo_barras
       FROM repuestos
       ORDER BY fecha_actualizacion DESC
       LIMIT $1`,

@@ -1,4 +1,6 @@
 const pool = require('../config/db');
+const whatsappService = require('../services/whatsappService');
+const logger = require('../config/logger');
 
 const AlertaModel = {
   // Crear alerta
@@ -80,7 +82,7 @@ const AlertaModel = {
     const dataParams = [...queryParams, limit, offset];
     const dataQuery = `
       SELECT a.*, r.nombre AS repuesto_nombre, r.stock AS stock_actual, 
-             r.categoria, r.referencia
+             r.stock_minimo, r.categoria, r.referencia
       FROM alertas a
       LEFT JOIN repuestos r ON r.repuesto_id = a.repuesto_id
       ${whereClause}
@@ -113,7 +115,7 @@ const AlertaModel = {
   async findById(id) {
     const result = await pool.query(
       `SELECT a.*, r.nombre AS repuesto_nombre, r.stock AS stock_actual,
-              r.categoria, r.referencia
+              r.stock_minimo, r.categoria, r.referencia
        FROM alertas a
        LEFT JOIN repuestos r ON r.repuesto_id = a.repuesto_id
        WHERE a.alerta_id = $1`,
@@ -141,16 +143,17 @@ const AlertaModel = {
   },
 
   /**
-   * Determinar prioridad basada en el stock
+   * Determinar prioridad basada en el stock y stock_minimo del producto
    * - urgente: stock = 0
-   * - alta: stock = 1
-   * - moderada: stock >= 2 y < 5
-   * - baja: stock >= 5
+   * - alta: stock > 0 y stock <= 25% del stock_minimo
+   * - moderada: stock > 25% del stock_minimo y stock < stock_minimo
+   * - baja: stock >= stock_minimo (se auto-elimina)
    */
-  _determinarPrioridad(stock) {
+  _determinarPrioridad(stock, stockMinimo = 5) {
     if (stock === 0) return 'urgente';
-    if (stock === 1) return 'alta';
-    if (stock >= 2 && stock < 5) return 'moderada';
+    const umbralAlta = Math.max(1, Math.floor(stockMinimo * 0.25));
+    if (stock <= umbralAlta) return 'alta';
+    if (stock < stockMinimo) return 'moderada';
     return 'baja';
   },
 
@@ -159,23 +162,26 @@ const AlertaModel = {
    */
   _generarMensaje(repuesto, prioridad) {
     const stock = Number(repuesto.stock);
+    const stockMinimo = Number(repuesto.stock_minimo || 5);
 
     switch (prioridad) {
       case 'urgente':
-        return `⚠️ URGENTE: "${repuesto.nombre}" sin stock disponible (0 unidades)`;
+        return `⚠️ URGENTE: "${repuesto.nombre}" sin stock disponible (0 unidades) [Mín: ${stockMinimo}]`;
       case 'alta':
-        return `🔴 ALTA: "${repuesto.nombre}" tiene solo 1 unidad en stock`;
+        return `🔴 ALTA: "${repuesto.nombre}" stock crítico (${stock} de ${stockMinimo} unidades)`;
       case 'moderada':
-        return `🟡 MODERADA: "${repuesto.nombre}" tiene stock bajo (${stock} unidades)`;
+        return `🟡 MODERADA: "${repuesto.nombre}" stock bajo (${stock} de ${stockMinimo} unidades)`;
       case 'baja':
-        return `🟢 BAJA: "${repuesto.nombre}" tiene stock limitado (${stock} unidades)`;
+        return `🟢 BAJA: "${repuesto.nombre}" stock limitado (${stock} unidades)`;
       default:
-        return `"${repuesto.nombre}" - Stock: ${stock} unidades`;
+        return `"${repuesto.nombre}" - Stock: ${stock}/${stockMinimo} unidades`;
     }
   },
 
   /**
    * Verificar stock y generar/actualizar alerta
+   * Usa stock_minimo del producto para determinar umbrales
+   * Envía WhatsApp solo cuando se crea una nueva alerta
    */
   async checkStockAndAlert(repuesto_id) {
     const result = await pool.query(
@@ -187,15 +193,16 @@ const AlertaModel = {
     if (!repuesto) return null;
 
     const stock = Number(repuesto.stock);
-    const prioridad = this._determinarPrioridad(stock);
+    const stockMinimo = Number(repuesto.stock_minimo || 5);
+    const prioridad = this._determinarPrioridad(stock, stockMinimo);
 
-    // Si stock >= 5, eliminar alertas existentes (stock normalizado)
-    if (stock >= 5) {
+    // Si stock >= stock_minimo, eliminar alertas existentes (stock normalizado)
+    if (stock >= stockMinimo) {
       await pool.query(
         `DELETE FROM alertas WHERE repuesto_id = $1 AND leida = FALSE`,
         [repuesto_id]
       );
-      return { action: 'deleted', stock };
+      return { action: 'deleted', stock, stockMinimo };
     }
 
     // Verificar si ya existe alerta activa para este repuesto
@@ -218,27 +225,42 @@ const AlertaModel = {
            WHERE alerta_id = $3`,
           [prioridad, mensaje, alertaActual.alerta_id]
         );
-        return { action: 'updated', prioridad, stock };
+        return { action: 'updated', prioridad, stock, stockMinimo };
       }
-      return { action: 'exists', prioridad, stock };
+      return { action: 'exists', prioridad, stock, stockMinimo };
     } else {
       // Crear nueva alerta
-      await this.create({
+      const nuevaAlerta = await this.create({
         repuesto_id: repuesto.repuesto_id,
         mensaje,
         tipo: 'stock_bajo',
         prioridad
       });
-      return { action: 'created', prioridad, stock };
+
+      // Enviar notificación WhatsApp (solo para alertas nuevas)
+      try {
+        const whatsappResult = await whatsappService.sendStockAlert(repuesto);
+        if (whatsappResult.sent > 0) {
+          await pool.query(
+            `UPDATE alertas SET whatsapp_enviado = TRUE WHERE alerta_id = $1`,
+            [nuevaAlerta.alerta_id]
+          );
+        }
+      } catch (whatsappError) {
+        logger.logError('Error al enviar WhatsApp de stock bajo', whatsappError, { repuesto_id });
+        // No fallamos la alerta si falla el WhatsApp
+      }
+
+      return { action: 'created', prioridad, stock, stockMinimo };
     }
   },
 
   /**
-   * Generar alertas para todos los repuestos con stock < 5
+   * Generar alertas para todos los repuestos con stock < stock_minimo
    */
   async generarAlertasStockBajo() {
     const result = await pool.query(
-      `SELECT * FROM repuestos WHERE stock < 5 AND activo = TRUE`
+      `SELECT * FROM repuestos WHERE stock < stock_minimo AND activo = TRUE`
     );
 
     const repuestoIds = result.rows.map(r => r.repuesto_id);
@@ -267,10 +289,11 @@ const AlertaModel = {
 
     for (const repuesto of result.rows) {
       const stock = Number(repuesto.stock);
-      const prioridad = this._determinarPrioridad(stock);
+      const stockMinimo = Number(repuesto.stock_minimo || 5);
+      const prioridad = this._determinarPrioridad(stock, stockMinimo);
 
-      // stock >= 5 shouldn't appear (WHERE clause), but be safe
-      if (stock >= 5) {
+      // stock >= stock_minimo shouldn't appear (WHERE clause), but be safe
+      if (stock >= stockMinimo) {
         if (alertasMap[repuesto.repuesto_id]) {
           await pool.query(
             `DELETE FROM alertas WHERE repuesto_id = $1 AND leida = FALSE`,
