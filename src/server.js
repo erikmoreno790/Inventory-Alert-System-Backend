@@ -34,22 +34,43 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
+// Render (y cualquier proxy delante) reenvía la IP real del cliente en X-Forwarded-For.
+// Sin esto, req.ip es la IP del proxy de Render y TODOS los usuarios comparten un
+// único contador del rate limiter.
+app.set('trust proxy', 1);
+
+// Respuesta y registro cuando se supera un límite de peticiones
+const rateLimitHandler = (req, res, next, options) => {
+    logger.logWarn('Límite de peticiones excedido', {
+        ip: req.ip,
+        method: req.method,
+        path: req.originalUrl,
+        limit: options.limit,
+    });
+    res.status(options.statusCode).json({ message: options.message });
+};
+
 // Rate limiter general para todas las rutas
+// Una SPA hace varias peticiones por pantalla y una por cada búsqueda en los filtros;
+// además, todos los equipos del taller salen a internet con la misma IP pública.
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // límite de 100 peticiones por ventana por IP
+    limit: parseInt(process.env.RATE_LIMIT_MAX) || 1000, // peticiones por ventana por IP
     message: 'Demasiadas peticiones desde esta IP, por favor intenta de nuevo más tarde.',
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS', // Los preflight de CORS no cuentan
+    handler: rateLimitHandler,
 });
 
 // Rate limiter estricto para autenticación
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 5, // límite de 5 intentos de login por ventana
+    limit: 5, // límite de 5 intentos de login por ventana
     message: 'Demasiados intentos de inicio de sesión, por favor intenta de nuevo en 15 minutos.',
     standardHeaders: true,
     legacyHeaders: false,
+    handler: rateLimitHandler,
 });
 
 // Exportar para usar en rutas específicas
@@ -62,9 +83,6 @@ app.use(helmet({
 
 // Compresión de respuestas
 app.use(compression());
-
-// Rate limiting general
-app.use(generalLimiter);
 
 // Lista de orígenes permitidos
 const allowedOrigins = [
@@ -83,7 +101,7 @@ const corsOptions = {
 
         // Permitir todos los dominios de Vercel (*.vercel.app)
         if (origin.endsWith('.vercel.app')) {
-            logger.logInfo('Origen Vercel permitido', { origin });
+            logger.logDebug('Origen Vercel permitido', { origin });
             return callback(null, true);
         }
 
@@ -111,7 +129,32 @@ const corsOptions = {
     preflightContinue: false
 };
 
+// CORS va ANTES del rate limiter: así incluso una respuesta 429 lleva los encabezados
+// CORS y el navegador puede leerla (si no, el frontend la ve como "error de red").
 app.use(cors(corsOptions));
+
+// Registro de cada petición: método, ruta, código de estado y duración
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    const start = process.hrtime.bigint();
+    res.on('finish', () => {
+        const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
+        const meta = {
+            method: req.method,
+            path: req.originalUrl,
+            status: res.statusCode,
+            durationMs: Math.round(durationMs),
+            ip: req.ip,
+        };
+        if (res.statusCode >= 500) logger.logError('Petición con error del servidor', null, meta);
+        else if (res.statusCode >= 400) logger.logWarn('Petición rechazada', meta);
+        else logger.logInfo('Petición', meta);
+    });
+    next();
+});
+
+// Rate limiting general
+app.use(generalLimiter);
 
 app.use(express.json({ limit: '1mb' })); // Limitar tamaño de body para prevenir abuso de memoria
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
